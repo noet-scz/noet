@@ -15,28 +15,28 @@
   .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:.8rem}
   ol{margin:.4rem 0 0;padding-left:1.3rem}
   li{margin:.25rem 0;color:#c3c3cd}
-  code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.15em .45em;font-size:.9em;color:var(--fg);word-break:break-all}
-  .copy-btn{display:inline-block;margin-top:.6rem;padding:.35rem .9rem;background:var(--acc);color:#fff;border:0;border-radius:7px;font-size:.85rem;cursor:pointer}
-  .copy-btn:hover{background:#6c4dff}
+  .cmd{position:relative;background:#1e1e28;border:1px solid var(--bd);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;padding-right:5rem}
+  .copy{position:absolute;right:.5rem;top:.5rem;padding:.25rem .7rem;background:var(--acc);color:#fff;border:0;border-radius:6px;font-size:.8rem;cursor:pointer;white-space:nowrap}
+  .copy:hover{background:#6c4dff}
+  .copy.ok{background:#3a7d44}
+  code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.15em .45em;font-size:.9em;color:var(--fg)}
   a{color:var(--acc2)}
-  .pac{font-size:.85rem;color:var(--mut);word-break:break-all}
+  .note{color:var(--mut);font-size:.88rem;margin-top:.4rem}
 </style>
 </head>
 <body>
 <main>
   <h1>noet</h1>
-  <p class="sub">Выбери свою платформу, сделай один раз и открывай <code>noet.nt</code> в браузере как обычный сайт.</p>
-
-  <p class="pac">PAC-файл: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></p>
+  <p class="sub">Выбери платформу, настрой один раз — и открывай <code>noet.nt</code> как обычный сайт.</p>
 
   <h2>Windows</h2>
   <div class="card">
     <ol>
       <li>Пуск → Параметры → Сеть и интернет → Прокси</li>
       <li>Включи <b>Использовать скрипт настройки</b></li>
-      <li>Вставь адрес скрипта: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
-      <li>Нажми Сохранить</li>
+      <li>Вставь адрес и нажми Сохранить:</li>
     </ol>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
   </div>
 
   <h2>macOS</h2>
@@ -44,16 +44,16 @@
     <ol>
       <li>Системные настройки → Сеть → выбери подключение → Прокси</li>
       <li>Отметь <b>Автоматическая настройка прокси</b></li>
-      <li>Вставь URL: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
-      <li>Нажми ОК → Применить</li>
+      <li>Вставь URL и нажми ОК → Применить:</li>
     </ol>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
   </div>
 
   <h2>Linux — Vivaldi, Chrome, Brave и др.</h2>
   <div class="card">
-    <p>Открой терминал и выполни одну команду:</p>
-    <code>echo '{"ProxySettings":{"ProxyMode":"pac_script","ProxyPacUrl":"https://noet-scz.github.io/noet/dist/proxy.pac"}}' | sudo tee /etc/chromium/policies/managed/noet.json</code>
-    <p style="color:var(--mut);font-size:.9rem;margin-top:.7rem">После — перезапусти браузер.</p>
+    <p>Выполни в терминале:</p>
+    <div class="cmd">echo '{"ProxySettings":{"ProxyMode":"pac_script","ProxyPacUrl":"https://noet-scz.github.io/noet/dist/proxy.pac"}}' | sudo tee /etc/chromium/policies/managed/noet.json<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <p class="note">После — перезапусти браузер.</p>
   </div>
 
   <h2>Linux — Firefox</h2>
@@ -61,29 +61,39 @@
     <ol>
       <li>Настройки → прокрути вниз → Настройки сети</li>
       <li>Выбери <b>URL автоматической настройки прокси</b></li>
-      <li>Вставь: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
-      <li>Нажми ОК</li>
+      <li>Вставь и нажми ОК:</li>
     </ol>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
   </div>
 
   <h2>iOS / iPadOS</h2>
   <div class="card">
     <ol>
-      <li>Открой эту ссылку в Safari: <a href="noet.mobileconfig">скачать профиль</a></li>
-      <li>Настройки → Основные → VPN и управление → установи профиль <b>noet</b></li>
+      <li><a href="noet.mobileconfig">Нажми сюда</a> — Safari скачает профиль</li>
+      <li>Настройки → Основные → VPN и управление устройством → установи профиль <b>noet</b></li>
     </ol>
   </div>
 
   <h2>Android</h2>
   <div class="card">
     <ol>
-      <li>Настройки → WiFi → удержи текущую сеть → Изменить сеть</li>
+      <li>Настройки → WiFi → удержи текущую сеть → Изменить</li>
       <li>Расширенные настройки → Прокси: <b>Автоматическая настройка</b></li>
-      <li>Вставь: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
-      <li>Сохранить</li>
+      <li>Вставь URL:</li>
     </ol>
-    <p style="color:var(--mut);font-size:.9rem;margin-top:.5rem">Нужно повторить для каждой WiFi-сети. На мобильном интернете не работает.</p>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <p class="note">Нужно повторить для каждой WiFi-сети. На мобильном интернете не работает.</p>
   </div>
 </main>
+<script>
+function copy(btn) {
+  const text = btn.parentElement.childNodes[0].textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Скопировано';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Скопировать'; btn.classList.remove('ok'); }, 1500);
+  });
+}
+</script>
 </body>
 </html>
