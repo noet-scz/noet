@@ -10,7 +10,7 @@
 #   REGISTRY_URL=http://1.2.3.4:8090 curl -fsSL .../install.sh | bash
 set -euo pipefail
 
-REGISTRY_URL="${REGISTRY_URL:-http://127.0.0.1:8091}"
+REGISTRY_URL="${REGISTRY_URL:-http://144.31.25.136:8090}"
 REPO_RAW="https://raw.githubusercontent.com/noet-scz/noet/main"
 APP="$HOME/.local/share/noet"
 IPFS_REPO="$APP/ipfs-repo"
