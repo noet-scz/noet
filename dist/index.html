@@ -49,11 +49,25 @@
     <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
   </div>
 
-  <h2>Linux — Vivaldi, Chrome, Brave и др.</h2>
+  <h2>Linux — Vivaldi</h2>
   <div class="card">
     <p>Выполни в терминале:</p>
-    <div class="cmd">echo '{"ProxySettings":{"ProxyMode":"pac_script","ProxyPacUrl":"https://noet-scz.github.io/noet/dist/proxy.pac"}}' | sudo tee /etc/chromium/policies/managed/noet.json<button class="copy" onclick="copy(this)">Скопировать</button></div>
-    <p class="note">После — перезапусти браузер.</p>
+    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/vivaldi-stable.conf<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <p class="note">После — перезапусти Vivaldi.</p>
+  </div>
+
+  <h2>Linux — Chrome</h2>
+  <div class="card">
+    <p>Выполни в терминале:</p>
+    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/chrome-flags.conf<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <p class="note">После — перезапусти Chrome.</p>
+  </div>
+
+  <h2>Linux — Brave</h2>
+  <div class="card">
+    <p>Выполни в терминале:</p>
+    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/brave-flags.conf<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <p class="note">После — перезапусти Brave.</p>
   </div>
 
   <h2>Linux — Firefox</h2>
