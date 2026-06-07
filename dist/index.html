@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>noet — подключение</title>
+<style>
+  :root{--bg:#0a0a0c;--card:#15151c;--bd:#23232c;--fg:#ececf2;--mut:#8b8b98;--acc:#7c5cff;--acc2:#9d8bff}
+  *{box-sizing:border-box}
+  body{font:16px/1.7 system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:2rem 1.2rem 4rem}
+  main{max-width:38rem;margin:0 auto}
+  h1{font-size:1.8rem;margin:0 0 .3rem}
+  .sub{color:var(--mut);margin-bottom:2rem}
+  h2{font-size:1rem;font-weight:600;margin:2rem 0 .5rem;color:var(--acc2)}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:.8rem}
+  ol{margin:.4rem 0 0;padding-left:1.3rem}
+  li{margin:.25rem 0;color:#c3c3cd}
+  code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.15em .45em;font-size:.9em;color:var(--fg);word-break:break-all}
+  .copy-btn{display:inline-block;margin-top:.6rem;padding:.35rem .9rem;background:var(--acc);color:#fff;border:0;border-radius:7px;font-size:.85rem;cursor:pointer}
+  .copy-btn:hover{background:#6c4dff}
+  a{color:var(--acc2)}
+  .pac{font-size:.85rem;color:var(--mut);word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+  <h1>noet</h1>
+  <p class="sub">Выбери свою платформу, сделай один раз и открывай <code>noet.nt</code> в браузере как обычный сайт.</p>
+
+  <p class="pac">PAC-файл: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></p>
+
+  <h2>Windows</h2>
+  <div class="card">
+    <ol>
+      <li>Пуск → Параметры → Сеть и интернет → Прокси</li>
+      <li>Включи <b>Использовать скрипт настройки</b></li>
+      <li>Вставь адрес скрипта: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
+      <li>Нажми Сохранить</li>
+    </ol>
+  </div>
+
+  <h2>macOS</h2>
+  <div class="card">
+    <ol>
+      <li>Системные настройки → Сеть → выбери подключение → Прокси</li>
+      <li>Отметь <b>Автоматическая настройка прокси</b></li>
+      <li>Вставь URL: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
+      <li>Нажми ОК → Применить</li>
+    </ol>
+  </div>
+
+  <h2>Linux (Firefox)</h2>
+  <div class="card">
+    <ol>
+      <li>Настройки → прокрути вниз → Настройки сети</li>
+      <li>Выбери <b>URL автоматической настройки прокси</b></li>
+      <li>Вставь: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
+      <li>Нажми ОК</li>
+    </ol>
+  </div>
+
+  <h2>iOS / iPadOS</h2>
+  <div class="card">
+    <ol>
+      <li>Открой эту ссылку в Safari: <a href="noet.mobileconfig">скачать профиль</a></li>
+      <li>Настройки → Основные → VPN и управление → установи профиль <b>noet</b></li>
+    </ol>
+  </div>
+
+  <h2>Android</h2>
+  <div class="card">
+    <ol>
+      <li>Настройки → WiFi → удержи текущую сеть → Изменить сеть</li>
+      <li>Расширенные настройки → Прокси: <b>Автоматическая настройка</b></li>
+      <li>Вставь: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
+      <li>Сохранить</li>
+    </ol>
+    <p style="color:var(--mut);font-size:.9rem;margin-top:.5rem">Нужно повторить для каждой WiFi-сети. На мобильном интернете не работает.</p>
+  </div>
+</main>
+</body>
+</html>
