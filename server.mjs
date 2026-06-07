@@ -1,20 +1,19 @@
-// noet — Zone Portal: реестр + резолвер + поиск + личность + реле (Nostr) + ПРОКСИ .nt
+// noet — один файл, две роли.
 //
-// Доступ по имени прямо в браузере: PAC отправляет хосты *.nt на этот сервер
-// (forward-proxy), сервер резолвит имя -> CID -> IPFS и отдаёт страницу. На каждую
-// страницу инжектится виджет (/widget.js). Личность хранится в изолированном
-// origin id.nt; relay.nt — Nostr-реле поверх WebSocket (см. ws.mjs).
+//  РЕЕСТР (без REGISTRY_URL): удалённый сервер. Хранит ТОЛЬКО имена (name -> CID),
+//    личность/сессии (auth), Nostr-реле и seed-пиннинг контента. Контент он НЕ отдаёт
+//    в браузер: просмотр идёт через локальный демон у каждого пользователя.
 //
-// Приложение-хосты: search.nt (поиск), relay.nt (реле), id.nt (личность).
-// Контент-хосты: <имя>.nt -> сайт из IPFS. Прямой доступ по IP (отладка): / , /relay , /id , /r/<имя>.
+//  ДЕМОН (с REGISTRY_URL): крутится на машине пользователя (127.0.0.1). PAC шлёт сюда
+//    *.nt и *.me. Демон синхронит список имён с реестра, резолвит name -> CID, тянет
+//    контент из ЛОКАЛЬНОГО kubo (P2P, проверка хешей) и отдаёт странице. Запись (вход,
+//    публикация, реле) проксируется на реестр. Так в просмотре нет ни одного сервера.
 
 import http from 'node:http';
+import net from 'node:net';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
-import * as auth from './auth.mjs';
-const BLOG_TLD = (process.env.BLOG_TLD || 'me').toLowerCase();
-const isBlog = (h) => h.endsWith('.' + BLOG_TLD);
 import { makeRelay } from './ws.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -23,23 +22,50 @@ const PORT = Number(process.env.PORT || 8090);
 const IPFS_GW = process.env.IPFS_GW || 'http://127.0.0.1:8080';
 const IPFS_API = process.env.IPFS_API || 'http://127.0.0.1:5001';
 const ZONE_TLD = (process.env.ZONE_TLD || 'nt').toLowerCase();
+const BLOG_TLD = (process.env.BLOG_TLD || 'me').toLowerCase();
+const REGISTRY_URL = (process.env.REGISTRY_URL || '').replace(/\/$/, '');
+const DAEMON = !!REGISTRY_URL;                       // роль определяется наличием REGISTRY_URL
 const REG_FILE = process.env.REGISTRY_FILE || join(__dir, 'registry.json');
 const SEED_FILE = join(__dir, 'registry.seed.json');
+const NAMES_CACHE = join(__dir, 'names.cache.json'); // офлайн-кэш имён (демон)
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const NAME_RE = new RegExp(`^([a-z0-9-]{1,32})\\.(${BLOG_TLD})$`, 'i');
 const RESERVED = new Set(['admin', 'root', 'sys', 'core', 'search', 'relay', 'id', 'profile', 'www', 'api']);
 
+const isBlog = (h) => h.endsWith('.' + BLOG_TLD);
+const isZone = (h) => h.endsWith('.' + ZONE_TLD);
+
+// auth нужен только реестру; демон проксирует вход на реестр и сам ключей не держит
+let auth = null;
+if (!DAEMON) auth = await import('./auth.mjs');
+
+// ---- имена ----
 let reg = existsSync(REG_FILE) ? JSON.parse(readFileSync(REG_FILE, 'utf8'))
   : existsSync(SEED_FILE) ? JSON.parse(readFileSync(SEED_FILE, 'utf8')) : { names: {} };
 const saveReg = () => writeFileSync(REG_FILE, JSON.stringify(reg, null, 2));
 
-// ---- IPFS (через gateway) ----
+// демон: тянем список имён с реестра, кэшируем, при недоступности живём с кэша
+async function syncNames() {
+  try {
+    const r = await fetch(`${REGISTRY_URL}/api/names`, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error('names ' + r.status);
+    const j = await r.json();
+    const names = {};
+    for (const [n, o] of Object.entries(j)) names[n] = { cid: o.cid, owner: o.owner, owner_handle: o.owner_handle, title: o.title };
+    reg = { names };
+    writeFileSync(NAMES_CACHE, JSON.stringify(reg));
+  } catch (e) {
+    if (existsSync(NAMES_CACHE)) { try { reg = JSON.parse(readFileSync(NAMES_CACHE, 'utf8')); } catch {} }
+    console.log('[daemon] синк имён не удался, работаю с кэша:', e.message);
+  }
+}
+
+// ---- IPFS (через локальный шлюз/RPC) ----
 async function ipfsCat(path) {
   const r = await fetch(`${IPFS_GW}/ipfs/${path}`, { redirect: 'follow' });
   if (!r.ok) throw new Error('gateway ' + r.status);
   return Buffer.from(await r.arrayBuffer());
 }
-// добавить файл в IPFS через RPC (локальный узел), обёрнутый в директорию -> CID директории
 async function ipfsAdd(filename, content) {
   const boundary = '----noet' + Math.random().toString(16).slice(2);
   const head = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
@@ -49,10 +75,16 @@ async function ipfsAdd(filename, content) {
   });
   if (!r.ok) throw new Error('ipfs add ' + r.status);
   const lines = (await r.text()).trim().split('\n').map((l) => { try { return JSON.parse(l); } catch { return {}; } });
-  const dir = lines.find((o) => o.Name === '' && o.Hash);   // обёртка-директория
+  const dir = lines.find((o) => o.Name === '' && o.Hash);
   if (!dir) throw new Error('ipfs add: нет CID директории');
   return dir.Hash;
 }
+// seed-пиннинг (реестр): подтянуть CID из сети и закрепить, чтобы контент жил, когда автор офлайн
+async function ipfsPin(cid) {
+  try { await fetch(`${IPFS_API}/api/v0/pin/add?arg=${encodeURIComponent(cid)}`, { method: 'POST', signal: AbortSignal.timeout(20000) }); }
+  catch { /* best-effort */ }
+}
+
 function renderPage({ title, body, name, handle, template }) {
   const e = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const link = (h) => h.replace(/(https?:\/\/[^\s<]+)/gi, (m) => `<a href="${m}">${m}</a>`);
@@ -92,7 +124,7 @@ function renderPage({ title, body, name, handle, template }) {
 </main></body></html>`;
 }
 
-// ---- индекс/поиск ----
+// ---- индекс/поиск (строится локально по синхронизированным именам) ----
 const index = new Map();
 function stripHtml(html) {
   const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -113,7 +145,7 @@ async function crawl() {
       ok++;
     } catch { /* недостижимо */ }
   }
-  console.log(`[portal] индекс: ${ok}/${Object.keys(reg.names).length} сайтов`);
+  console.log(`[${DAEMON ? 'daemon' : 'registry'}] индекс: ${ok}/${Object.keys(reg.names).length} сайтов`);
 }
 function search(q) {
   const terms = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
@@ -142,7 +174,6 @@ const sendHtml = (res, c, h) => { res.writeHead(c, { 'content-type': 'text/html;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => r(d)); });
 const hostOf = (req) => (req.headers.host || '').toLowerCase().split(':')[0];
-const isZone = (h) => h.endsWith('.' + ZONE_TLD);
 function reqUrl(req) { return /^https?:\/\//i.test(req.url) ? new URL(req.url) : new URL(req.url, 'http://x'); }
 const bearer = (req) => { const h = req.headers['authorization'] || ''; return h.startsWith('Bearer ') ? h.slice(7) : (reqUrl(req).searchParams.get('token') || ''); };
 
@@ -154,16 +185,34 @@ function sendFile(res, file, code = 200) {
     res.end(buf);
   } catch { sendJson(res, 404, { error: 'нет файла' }); }
 }
-// инжект виджета в страницы noet (контент из IPFS)
 function withWidget(html) {
   const tag = '<script src="/i18n.js"></script><script src="/widget.js"></script>';
   if (html.includes('/widget.js')) return html;
   return html.includes('</body>') ? html.replace('</body>', tag + '</body>') : html + tag;
 }
 
+// демон: прозрачный реверс-прокси на реестр (вход/сессии/участники/claim/инвайты)
+async function proxyToRegistry(req, res) {
+  const u = reqUrl(req);
+  const target = REGISTRY_URL + u.pathname + (u.search || '');
+  const headers = {};
+  for (const h of ['authorization', 'content-type', 'x-admin-token']) if (req.headers[h]) headers[h] = req.headers[h];
+  let body;
+  if (req.method !== 'GET' && req.method !== 'HEAD') body = await readBody(req);
+  try {
+    const r = await fetch(target, { method: req.method, headers, body, signal: AbortSignal.timeout(15000) });
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.writeHead(r.status, { 'content-type': r.headers.get('content-type') || 'application/json; charset=utf-8', ...cors });
+    res.end(buf);
+  } catch (e) {
+    sendJson(res, 502, { error: 'реестр недоступен, попробуй позже', code: 'network' });
+  }
+}
+
 function pacFile(proxyHostPort) {
   return `function FindProxyForURL(url, host) {
   if (shExpMatch(host, "*.${ZONE_TLD}")) return "PROXY ${proxyHostPort}";
+  if (shExpMatch(host, "*.${BLOG_TLD}")) return "PROXY ${proxyHostPort}";
   return "DIRECT";
 }
 `;
@@ -176,7 +225,6 @@ const notFoundPage = (name) => `<!doctype html><meta charset=utf-8><title>${esc(
 <p><a style="color:#9d8bff" href="http://noet.nt/">← на noet.nt</a></p>
 <script src="/widget.js"></script>`;
 
-// ---- статические ассеты (host-независимо) ----
 const STATIC = {
   '/widget.js': join(WEB, 'widget.js'),
   '/account.js': join(WEB, 'account.js'),
@@ -186,6 +234,9 @@ const STATIC = {
   '/vendor/noble-secp256k1.js': join(__dir, 'vendor', 'noble-secp256k1.js'),
 };
 
+// в демоне эти запросы уходят на реестр (личность/сессии/запись имени)
+const PROXY_PATHS = new Set(['/api/me', '/api/members', '/api/auth/challenge', '/api/auth/login', '/api/invite', '/api/claim']);
+
 // ---- сервер ----
 const server = http.createServer(async (req, res) => {
   const host = hostOf(req);
@@ -194,7 +245,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
 
-  // статика
+  // статика (host-независимо)
   if (req.method === 'GET' && STATIC[path]) return sendFile(res, STATIC[path]);
   if (req.method === 'GET' && (path === `/${ZONE_TLD}.pac` || path === '/proxy.pac' || path === '/scz.pac')) {
     res.writeHead(200, { 'content-type': 'application/x-ns-proxy-autoconfig', ...cors });
@@ -202,84 +253,99 @@ const server = http.createServer(async (req, res) => {
   }
   if (path === '/favicon.ico') return sendFile(res, join(WEB, 'logo.svg'));
 
-  // API (host-независимо)
+  // ---- демон: личность/сессии/запись имени → проксируем на реестр ----
+  if (DAEMON && PROXY_PATHS.has(path)) return proxyToRegistry(req, res);
+
+  // ---- демон: публикация. Рендер + добавление в ЛОКАЛЬНЫЙ kubo, затем claim на реестр ----
+  if (DAEMON && req.method === 'POST' && path === '/api/publish') {
+    const token = bearer(req);
+    if (!token) return sendJson(res, 401, { error: 'нужен вход, чтобы публиковать', code: 'need_login' });
+    // кто я (хэндл/ключ) — спрашиваем реестр
+    let me; try {
+      const r = await fetch(`${REGISTRY_URL}/api/me`, { headers: { authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(10000) });
+      me = r.ok ? await r.json() : null;
+    } catch { return sendJson(res, 502, { error: 'реестр недоступен', code: 'network' }); }
+    if (!me) return sendJson(res, 401, { error: 'нужен вход', code: 'need_login' });
+    let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
+    let name = String(d.name || '').toLowerCase().trim();
+    if (!name) { if (!me.handle) return sendJson(res, 400, { error: 'нет хэндла', code: 'need_login' }); name = `${me.handle}.${BLOG_TLD}`; }
+    const m = name.match(NAME_RE);
+    if (!m) return sendJson(res, 400, { error: 'короткое имя: буквы, цифры, дефис', code: 'name_format' });
+    if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'зарезервированное имя', code: 'name_format' });
+    let cid, recTitle;
+    if (String(d.mode || '') === 'html') {
+      const rawHtml = String(d.body || '').slice(0, 500000);
+      if (!rawHtml.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
+      const tm = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      recTitle = (tm ? tm[1].trim() : '') || name;
+      try { cid = await ipfsAdd('index.html', Buffer.from(rawHtml, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
+    } else {
+      const title = String(d.title || '').slice(0, 140).trim(), body = String(d.body || '').slice(0, 20000);
+      if (!title && !body.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
+      const html = renderPage({ title, body, name, handle: me.handle });
+      try { cid = await ipfsAdd('index.html', Buffer.from(html, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
+      recTitle = title || name;
+    }
+    // имя занимаем на реестре (он судья уникальности и владения)
+    let claim; try {
+      const r = await fetch(`${REGISTRY_URL}/api/claim`, {
+        method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+        body: JSON.stringify({ name, cid, title: recTitle }), signal: AbortSignal.timeout(15000),
+      });
+      claim = { status: r.status, body: await r.json().catch(() => ({})) };
+    } catch { return sendJson(res, 502, { error: 'реестр недоступен', code: 'network' }); }
+    if (claim.status >= 200 && claim.status < 300) { reg.names[name] = { cid, owner: me.pubkey, owner_handle: me.handle, title: recTitle }; index.delete(name); crawl(); }
+    return sendJson(res, claim.status, claim.status < 300 ? { name, cid, title: recTitle } : claim.body);
+  }
+
+  // ---- чтение имён/поиск/резолв (локально из синхронизированного списка) ----
   if (req.method === 'GET' && path === '/api/names') {
     const out = {};
     for (const [n, r] of Object.entries(reg.names)) out[n] = { cid: r.cid, title: (index.get(n) || {}).title || r.title || n, owner: r.owner, owner_handle: r.owner_handle || null };
     return sendJson(res, 200, out);
   }
-  if (req.method === 'GET' && path === '/api/members') return sendJson(res, 200, auth.allHandles());
   if (req.method === 'GET' && path === '/api/search') return sendJson(res, 200, search(url.searchParams.get('q')));
   if (req.method === 'GET' && path.startsWith('/api/resolve/')) {
     const name = path.slice('/api/resolve/'.length).toLowerCase();
     const rec = reg.names[name];
-    return rec ? sendJson(res, 200, { name, cid: rec.cid, raw: rec.raw || null, title: rec.title || name }) : sendJson(res, 404, { error: 'not found', name });
+    return rec ? sendJson(res, 200, { name, cid: rec.cid, title: rec.title || name }) : sendJson(res, 404, { error: 'not found', name });
   }
 
-  // ---- личность (Nostr-ключ) + гейт на участие ----
-  if (req.method === 'GET' && path === '/api/auth/challenge') return sendJson(res, 200, { challenge: auth.newChallenge() });
-  if (req.method === 'POST' && path === '/api/auth/login') {
-    let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json' }); }
-    const r = await auth.login(d);
-    if (r.ok) return sendJson(res, 200, r);
-    return sendJson(res, r.code || 400, { error: r.error, code: r.errcode || 'generic' });
-  }
-  if (req.method === 'GET' && path === '/api/me') {
-    const m = auth.me(bearer(req));
-    return m ? sendJson(res, 200, m) : sendJson(res, 401, { error: 'не авторизован' });
-  }
-  if (req.method === 'POST' && path === '/api/invite') {
-    if (!ADMIN_TOKEN || req.headers['x-admin-token'] !== ADMIN_TOKEN) return sendJson(res, 403, { error: 'нужен admin-token' });
-    return sendJson(res, 201, { invite: auth.createInvite('founder') });
-  }
-  if (req.method === 'POST' && path === '/api/claim') {
-    const pk = auth.sessionPubkey(bearer(req));
-    if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы занять имя', code: 'need_login' });
-    let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
-    const name = String(d.name || '').toLowerCase().trim(), m = name.match(NAME_RE);
-    if (!m) return sendJson(res, 400, { error: `имя вида handle.${BLOG_TLD}`, code: 'name_format' });
-    if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'системное/односложное имя', code: 'name_format' });
-    if (!d.cid) return sendJson(res, 400, { error: 'нужен cid', code: 'need_cid' });
-    const cur = reg.names[name];
-    if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken', owner_handle: cur.owner_handle || null });
-    reg.names[name] = { cid: String(d.cid).trim(), owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: d.title || name };
-    saveReg(); await crawl();
-    return sendJson(res, 201, { name, ...reg.names[name] });
-  }
-  // создать/обновить страницу: рендер -> IPFS -> занять имя (нужен вход; имя своё или свободное)
-  if (req.method === 'POST' && path === '/api/publish') {
-    const pk = auth.sessionPubkey(bearer(req));
-    if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы публиковать', code: 'need_login' });
-    let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
-    // имя: явно указано → валидируем; не указано → handle.me
-    let name = String(d.name || '').toLowerCase().trim();
-    if (!name) { const h = auth.handleOf(pk); if (!h) return sendJson(res, 400, { error: 'нет хэндла', code: 'need_login' }); name = `${h}.${BLOG_TLD}`; }
-    const m = name.match(NAME_RE);
-    if (!m) return sendJson(res, 400, { error: `короткое имя: буквы, цифры, дефис`, code: 'name_format' });
-    if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'зарезервированное имя', code: 'name_format' });
-    const cur = reg.names[name];
-    if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
-    let cid, recTitle, rawData;
-    if (String(d.mode || '') === 'html') {
-      const rawHtml = String(d.body || '').slice(0, 500000);
-      if (!rawHtml.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
-      const titleMatch = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      recTitle = (titleMatch ? titleMatch[1].trim() : '') || name;
-      try { cid = await ipfsAdd('index.html', Buffer.from(rawHtml, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
-      rawData = { mode: 'html', body: rawHtml };
-    } else {
-      const title = String(d.title || '').slice(0, 140).trim(), body = String(d.body || '').slice(0, 20000);
-      if (!title && !body.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
-      const html = renderPage({ title, body, name, handle: auth.handleOf(pk) });
-      try { cid = await ipfsAdd('index.html', Buffer.from(html, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
-      recTitle = title || name; rawData = { title, body };
+  // ---- реестр: личность (Nostr-ключ) + запись имени + seed-пиннинг ----
+  if (!DAEMON) {
+    if (req.method === 'GET' && path === '/api/members') return sendJson(res, 200, auth.allHandles());
+    if (req.method === 'GET' && path === '/api/auth/challenge') return sendJson(res, 200, { challenge: auth.newChallenge() });
+    if (req.method === 'POST' && path === '/api/auth/login') {
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json' }); }
+      const r = await auth.login(d);
+      if (r.ok) return sendJson(res, 200, r);
+      return sendJson(res, r.code || 400, { error: r.error, code: r.errcode || 'generic' });
     }
-    reg.names[name] = { cid, owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: recTitle, raw: rawData };
-    saveReg(); await crawl();
-    return sendJson(res, 201, { name, cid, title: recTitle });
+    if (req.method === 'GET' && path === '/api/me') {
+      const m = auth.me(bearer(req));
+      return m ? sendJson(res, 200, m) : sendJson(res, 401, { error: 'не авторизован' });
+    }
+    if (req.method === 'POST' && path === '/api/invite') {
+      if (!ADMIN_TOKEN || req.headers['x-admin-token'] !== ADMIN_TOKEN) return sendJson(res, 403, { error: 'нужен admin-token' });
+      return sendJson(res, 201, { invite: auth.createInvite('founder') });
+    }
+    if (req.method === 'POST' && path === '/api/claim') {
+      const pk = auth.sessionPubkey(bearer(req));
+      if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы занять имя', code: 'need_login' });
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
+      const name = String(d.name || '').toLowerCase().trim(), m = name.match(NAME_RE);
+      if (!m) return sendJson(res, 400, { error: `имя вида handle.${BLOG_TLD}`, code: 'name_format' });
+      if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'системное/односложное имя', code: 'name_format' });
+      if (!d.cid) return sendJson(res, 400, { error: 'нужен cid', code: 'need_cid' });
+      const cur = reg.names[name];
+      if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken', owner_handle: cur.owner_handle || null });
+      reg.names[name] = { cid: String(d.cid).trim(), owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: d.title || name };
+      saveReg(); ipfsPin(reg.names[name].cid); index.delete(name); crawl();
+      return sendJson(res, 201, { name, ...reg.names[name] });
+    }
   }
 
-  // ----- *.me (личные страницы пользователей) -----
+  // ----- *.me (личные страницы): резолв -> локальный kubo -> отдать -----
   if (isBlog(host)) {
     const rec = reg.names[host];
     if (!rec) return sendHtml(res, 404, notFoundPage(host));
@@ -287,7 +353,7 @@ const server = http.createServer(async (req, res) => {
     catch (e) { return sendHtml(res, 504, `<h1>504</h1><p>IPFS не отдал контент: ${esc(e.message)}</p>`); }
   }
 
-  // ----- доступ ПО ИМЕНИ (через прокси) -----
+  // ----- доступ ПО ИМЕНИ (через прокси-демон) -----
   if (isZone(host)) {
     if (host === 'id.nt') return sendFile(res, join(WEB, 'account.html'));
     if (host === 'relay.nt') return sendFile(res, join(WEB, 'relay.html'));
@@ -313,15 +379,44 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, { error: 'нет маршрута' });
 });
 
-// Nostr-реле поверх WebSocket
-const relay = makeRelay({ verify: auth.verifyNostr, file: join(__dir, 'relay-events.json') });
-relay.attach(server);
+// ---- Nostr-реле ----
+if (DAEMON) {
+  // демон проксирует relay.nt на реле реестра (общая лента у всех)
+  server.on('upgrade', (req, clientSocket, head) => {
+    const h = (req.headers.host || '').toLowerCase();
+    const wantRelay = h.startsWith('relay.') || (req.url || '').includes('relay');
+    if ((req.headers.upgrade || '').toLowerCase() !== 'websocket' || !wantRelay) { clientSocket.destroy(); return; }
+    const u = new URL(REGISTRY_URL);
+    const port = Number(u.port) || (u.protocol === 'https:' ? 443 : 80);
+    const upstream = net.connect(port, u.hostname, () => {
+      const fwd = { ...req.headers, host: u.host };
+      let raw = 'GET /relay HTTP/1.1\r\n';
+      for (const [k, v] of Object.entries(fwd)) raw += `${k}: ${v}\r\n`;
+      raw += '\r\n';
+      upstream.write(raw);
+      if (head && head.length) upstream.write(head);
+      upstream.pipe(clientSocket);
+      clientSocket.pipe(upstream);
+    });
+    upstream.on('error', () => { try { clientSocket.destroy(); } catch {} });
+    clientSocket.on('error', () => { try { upstream.destroy(); } catch {} });
+  });
+} else {
+  const relay = makeRelay({ verify: auth.verifyNostr, file: join(__dir, 'relay-events.json') });
+  relay.attach(server);
+}
 
-// https-попытки (CONNECT) аккуратно отклоняем — noet работает по http
 server.on('connect', (req, socket) => { socket.write('HTTP/1.1 501 Not Implemented\r\n\r\nnoet работает по http\r\n'); socket.end(); });
 
 server.listen(PORT, '0.0.0.0', async () => {
-  console.log(`[portal] :${PORT} → IPFS ${IPFS_GW} · noet .${ZONE_TLD} · имён: ${Object.keys(reg.names).length} · реле on`);
-  await crawl();
-  setInterval(crawl, 5 * 60 * 1000);
+  if (DAEMON) {
+    console.log(`[daemon] :${PORT} → IPFS ${IPFS_GW} · реестр ${REGISTRY_URL}`);
+    await syncNames();
+    await crawl();
+    setInterval(async () => { await syncNames(); await crawl(); }, 60 * 1000);
+  } else {
+    console.log(`[registry] :${PORT} · имён: ${Object.keys(reg.names).length} · реле on`);
+    await crawl();
+    setInterval(crawl, 5 * 60 * 1000);
+  }
 });

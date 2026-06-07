@@ -12,91 +12,47 @@
   h1{font-size:1.8rem;margin:0 0 .3rem}
   .sub{color:var(--mut);margin-bottom:2rem}
   h2{font-size:1rem;font-weight:600;margin:2rem 0 .5rem;color:var(--acc2)}
+  .step{display:inline-block;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;background:var(--acc);color:#fff;border-radius:50%;font-size:.85rem;margin-right:.4rem}
   .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:.8rem}
   ol{margin:.4rem 0 0;padding-left:1.3rem}
   li{margin:.25rem 0;color:#c3c3cd}
-  .cmd{position:relative;background:#1e1e28;border:1px solid var(--bd);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;padding-right:5rem}
+  .cmd{position:relative;background:#1e1e28;border:1px solid var(--bd);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;padding-right:3rem}
   .copy{position:absolute;right:.5rem;top:.5rem;padding:.3rem;background:transparent;border:0;cursor:pointer;color:var(--mut);border-radius:5px;line-height:0}
   .copy:hover{color:var(--fg);background:#2a2a38}
   .copy.ok{color:#4caf72}
   code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.15em .45em;font-size:.9em;color:var(--fg)}
   a{color:var(--acc2)}
   .note{color:var(--mut);font-size:.88rem;margin-top:.4rem}
+  .soon{color:var(--mut);font-size:.92rem}
+  .why{border-left:3px solid var(--acc);padding-left:.9rem;margin:1.5rem 0;color:#c3c3cd}
 </style>
 </head>
 <body>
 <main>
   <h1>noet</h1>
-  <p class="sub">Выбери платформу, настрой один раз — и открывай <code>noet.nt</code> как обычный сайт.</p>
+  <p class="sub">Открывай <code>noet.nt</code> и личные страницы в браузере как обычные сайты. Контент тянется напрямую из IPFS у тебя на машине, сервер хранит только имена.</p>
 
-  <h2>Windows</h2>
-  <div class="card">
-    <ol>
-      <li>Пуск → Параметры → Сеть и интернет → Прокси</li>
-      <li>Включи <b>Использовать скрипт настройки</b></li>
-      <li>Вставь адрес и нажми Сохранить:</li>
-    </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-  </div>
+  <div class="why">Один раз ставишь локальный резолвер. Дальше он работает в фоне, и любые имена noet открываются в любом браузере. Если сервер имён выключат, уже открытое и закэшированное продолжает работать.</div>
 
-  <h2>macOS</h2>
+  <h2>Linux</h2>
   <div class="card">
-    <ol>
-      <li>Системные настройки → Сеть → выбери подключение → Прокси</li>
-      <li>Отметь <b>Автоматическая настройка прокси</b></li>
-      <li>Вставь URL и нажми ОК → Применить:</li>
-    </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-  </div>
-
-  <h2>Linux — Vivaldi</h2>
-  <div class="card">
-    <p>Выполни в терминале:</p>
+    <p><span class="step">1</span>Поставь резолвер одной командой:</p>
+    <div class="cmd">curl -fsSL https://noet-scz.github.io/noet/dist/install.sh | bash<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
+    <p class="note">Ставит kubo (IPFS) и демона как фоновые сервисы. Нужен Node.js 18+.</p>
+    <p style="margin-top:1rem"><span class="step">2</span>Укажи браузеру PAC (один раз):</p>
     <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/vivaldi-stable.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-    <p class="note">После — перезапусти Vivaldi.</p>
+    <p class="note">Для Chrome замени файл на <code>~/.config/chrome-flags.conf</code>, для Brave на <code>~/.config/brave-flags.conf</code>. Firefox: Настройки → Сеть → URL автонастройки прокси.</p>
+    <p style="margin-top:1rem"><span class="step">3</span>Перезапусти браузер и открой <code>http://noet.nt/</code></p>
   </div>
 
-  <h2>Linux — Chrome</h2>
+  <h2>Windows и macOS</h2>
   <div class="card">
-    <p>Выполни в терминале:</p>
-    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/chrome-flags.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-    <p class="note">После — перезапусти Chrome.</p>
+    <p class="soon">Готовый установщик резолвера в работе. Резолвер кросс-платформенный (Node + kubo), сборка под эти системы появится здесь.</p>
   </div>
 
-  <h2>Linux — Brave</h2>
+  <h2>Телефоны</h2>
   <div class="card">
-    <p>Выполни в терминале:</p>
-    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/brave-flags.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-    <p class="note">После — перезапусти Brave.</p>
-  </div>
-
-  <h2>Linux — Firefox</h2>
-  <div class="card">
-    <ol>
-      <li>Настройки → прокрути вниз → Настройки сети</li>
-      <li>Выбери <b>URL автоматической настройки прокси</b></li>
-      <li>Вставь и нажми ОК:</li>
-    </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-  </div>
-
-  <h2>iOS / iPadOS</h2>
-  <div class="card">
-    <ol>
-      <li><a href="noet.mobileconfig">Нажми сюда</a> — Safari скачает профиль</li>
-      <li>Настройки → Основные → VPN и управление устройством → установи профиль <b>noet</b></li>
-    </ol>
-  </div>
-
-  <h2>Android</h2>
-  <div class="card">
-    <ol>
-      <li>Настройки → WiFi → удержи текущую сеть → Изменить</li>
-      <li>Расширенные настройки → Прокси: <b>Автоматическая настройка</b></li>
-      <li>Вставь URL:</li>
-    </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-    <p class="note">Нужно повторить для каждой WiFi-сети. На мобильном интернете не работает.</p>
+    <p class="soon">На телефоне нельзя держать локальный резолвер, поэтому прямой доступ по имени пока только на компьютере.</p>
   </div>
 </main>
 <script>

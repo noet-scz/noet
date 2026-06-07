@@ -7,3 +7,4 @@ registry.json
 registry.seed.json
 dist/_ext.zip
 node_modules/
+names.cache.json
