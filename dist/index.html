@@ -51,9 +51,10 @@
 
   <h2>Linux — Vivaldi, Chrome, Brave и др.</h2>
   <div class="card">
-    <p>Открой терминал и выполни одну команду:</p>
-    <code>echo '{"ProxySettings":{"ProxyMode":"pac_script","ProxyPacUrl":"https://noet-scz.github.io/noet/dist/proxy.pac"}}' | sudo tee /etc/chromium/policies/managed/noet.json</code>
-    <p style="color:var(--mut);font-size:.9rem;margin-top:.7rem">Работает на любом окружении (KDE, GNOME, Sway, Niri и др.). После — перезапусти браузер.</p>
+    <p>Открой терминал и выполни одну команду — без пароля, работает на любом окружении:</p>
+    <code>sed -i 's|Exec=/usr/bin/vivaldi-stable %U|Exec=/usr/bin/vivaldi-stable --proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac %U|' ~/.local/share/applications/vivaldi-stable.desktop 2>/dev/null || (cp /usr/share/applications/vivaldi-stable.desktop ~/.local/share/applications/ && sed -i 's|Exec=/usr/bin/vivaldi-stable %U|Exec=/usr/bin/vivaldi-stable --proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac %U|' ~/.local/share/applications/vivaldi-stable.desktop)</code>
+    <p style="color:var(--mut);font-size:.9rem;margin-top:.7rem">После — перезапусти Vivaldi. Прокси будет работать при каждом запуске автоматически.</p>
+    <p style="color:var(--mut);font-size:.9rem">Для Chrome замени <code>vivaldi-stable</code> на <code>google-chrome</code>, для Brave на <code>brave-browser</code>.</p>
   </div>
 
   <h2>Linux — Firefox</h2>
