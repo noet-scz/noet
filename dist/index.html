@@ -16,9 +16,9 @@
   ol{margin:.4rem 0 0;padding-left:1.3rem}
   li{margin:.25rem 0;color:#c3c3cd}
   .cmd{position:relative;background:#1e1e28;border:1px solid var(--bd);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;padding-right:5rem}
-  .copy{position:absolute;right:.5rem;top:.5rem;padding:.25rem .7rem;background:var(--acc);color:#fff;border:0;border-radius:6px;font-size:.8rem;cursor:pointer;white-space:nowrap}
-  .copy:hover{background:#6c4dff}
-  .copy.ok{background:#3a7d44}
+  .copy{position:absolute;right:.5rem;top:.5rem;padding:.3rem;background:transparent;border:0;cursor:pointer;color:var(--mut);border-radius:5px;line-height:0}
+  .copy:hover{color:var(--fg);background:#2a2a38}
+  .copy.ok{color:#4caf72}
   code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.15em .45em;font-size:.9em;color:var(--fg)}
   a{color:var(--acc2)}
   .note{color:var(--mut);font-size:.88rem;margin-top:.4rem}
@@ -36,7 +36,7 @@
       <li>Включи <b>Использовать скрипт настройки</b></li>
       <li>Вставь адрес и нажми Сохранить:</li>
     </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
   </div>
 
   <h2>macOS</h2>
@@ -46,27 +46,27 @@
       <li>Отметь <b>Автоматическая настройка прокси</b></li>
       <li>Вставь URL и нажми ОК → Применить:</li>
     </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
   </div>
 
   <h2>Linux — Vivaldi</h2>
   <div class="card">
     <p>Выполни в терминале:</p>
-    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/vivaldi-stable.conf<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/vivaldi-stable.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
     <p class="note">После — перезапусти Vivaldi.</p>
   </div>
 
   <h2>Linux — Chrome</h2>
   <div class="card">
     <p>Выполни в терминале:</p>
-    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/chrome-flags.conf<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/chrome-flags.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
     <p class="note">После — перезапусти Chrome.</p>
   </div>
 
   <h2>Linux — Brave</h2>
   <div class="card">
     <p>Выполни в терминале:</p>
-    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/brave-flags.conf<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/brave-flags.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
     <p class="note">После — перезапусти Brave.</p>
   </div>
 
@@ -77,7 +77,7 @@
       <li>Выбери <b>URL автоматической настройки прокси</b></li>
       <li>Вставь и нажми ОК:</li>
     </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
   </div>
 
   <h2>iOS / iPadOS</h2>
@@ -95,17 +95,19 @@
       <li>Расширенные настройки → Прокси: <b>Автоматическая настройка</b></li>
       <li>Вставь URL:</li>
     </ol>
-    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)">Скопировать</button></div>
+    <div class="cmd">https://noet-scz.github.io/noet/dist/proxy.pac<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
     <p class="note">Нужно повторить для каждой WiFi-сети. На мобильном интернете не работает.</p>
   </div>
 </main>
 <script>
+const copyIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const checkIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 function copy(btn) {
   const text = btn.parentElement.childNodes[0].textContent.trim();
   navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = 'Скопировано';
+    btn.innerHTML = checkIcon;
     btn.classList.add('ok');
-    setTimeout(() => { btn.textContent = 'Скопировать'; btn.classList.remove('ok'); }, 1500);
+    setTimeout(() => { btn.innerHTML = copyIcon; btn.classList.remove('ok'); }, 1500);
   });
 }
 </script>
