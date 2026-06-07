@@ -49,24 +49,11 @@
     </ol>
   </div>
 
-  <h2>Linux — KDE Plasma (Vivaldi, Chrome, любой браузер)</h2>
+  <h2>Linux — Vivaldi, Chrome, Brave и др.</h2>
   <div class="card">
-    <ol>
-      <li>Системные параметры → Сеть → Прокси</li>
-      <li>Выбери <b>Использовать автоматически определяемую конфигурацию прокси</b></li>
-      <li>Вставь URL: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
-      <li>Нажми Применить</li>
-    </ol>
-    <p style="color:var(--mut);font-size:.9rem;margin-top:.5rem">Chromium-браузеры берут прокси из системных настроек — настраивается один раз для всех.</p>
-  </div>
-
-  <h2>Linux — GNOME (Vivaldi, Chrome, любой браузер)</h2>
-  <div class="card">
-    <ol>
-      <li>Настройки → Сеть → Сетевой прокси → иконка шестерёнки</li>
-      <li>Выбери <b>Автоматически</b></li>
-      <li>Вставь URL: <code>https://noet-scz.github.io/noet/dist/proxy.pac</code></li>
-    </ol>
+    <p>Открой терминал и выполни одну команду:</p>
+    <code>echo '{"ProxySettings":{"ProxyMode":"pac_script","ProxyPacUrl":"https://noet-scz.github.io/noet/dist/proxy.pac"}}' | sudo tee /etc/chromium/policies/managed/noet.json</code>
+    <p style="color:var(--mut);font-size:.9rem;margin-top:.7rem">Работает на любом окружении (KDE, GNOME, Sway, Niri и др.). После — перезапусти браузер.</p>
   </div>
 
   <h2>Linux — Firefox</h2>
