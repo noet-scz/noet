@@ -47,28 +47,22 @@ function setName(host) {
 }
 function showMsg(html) { $('#msg').style.display = 'flex'; $('#msg').innerHTML = html; }
 
-// Сами забираем HTML со шлюза (CORS *) и кладём в iframe через srcdoc: контент в
-// нашем origin, без чужого CSP, поэтому инлайн JS и CSS работают на 100%. sandbox
-// без allow-same-origin = изоляция от расширения. <base> чинит относительные ссылки.
-async function renderContent(cid, gateways) {
+// Грузим CID в iframe через src НАСТОЯЩЕГО per-CID origin шлюза (например w3s.link).
+// У реального https-origin CSP родителя НЕ наследуется (в отличие от srcdoc/blob),
+// поэтому инлайн JS и CSS страницы работают на 100%. Шлюз изолирован от расширения
+// по SOP. По таймауту берём следующий шлюз.
+function renderContent(cid, gateways) {
   const frame = $('#frame');
-  for (let i = 0; i < gateways.length; i++) {
-    const gw = gateways[i].replace('{cid}', cid);
-    try {
-      const r = await fetch(gw, { signal: AbortSignal.timeout(12000) });
-      if (!r.ok) continue;
-      let html = await r.text();
-      const baseTag = `<base href="${gw}">`;
-      if (!/<base\b/i.test(html)) {
-        html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + baseTag) : baseTag + html;
-      }
-      frame.srcdoc = html;
-      $('#msg').style.display = 'none';
-      frame.hidden = false;
-      return;
-    } catch { /* следующий шлюз */ }
-  }
-  showMsg('<h2>Контент недоступен</h2><div>Ни один IPFS-шлюз не ответил. Попробуй позже.</div>');
+  let i = 0, done = false;
+  const tryNext = () => {
+    if (done) return;
+    if (i >= gateways.length) { showMsg('<h2>Контент недоступен</h2><div>Ни один IPFS-шлюз не ответил. Попробуй позже.</div>'); return; }
+    const url = gateways[i++].replace('{cid}', cid);
+    const t = setTimeout(tryNext, 12000);
+    frame.onload = () => { clearTimeout(t); if (done) return; done = true; $('#msg').style.display = 'none'; frame.hidden = false; };
+    frame.src = url;
+  };
+  tryNext();
 }
 
 async function main() {

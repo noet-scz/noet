@@ -5,8 +5,8 @@
 (function () {
   if (window.__noetWidget) return; window.__noetWidget = true;
   const ID_ORIGIN = 'http://id.nt';
-  const TOKEN_KEY = 'noet_local_token';
-  const NSEC_KEY  = 'noet_local_nsec';
+  const TOKEN_KEY = 'noet_token';   // те же ключи, что в account.js: всё на одном origin реестра
+  const NSEC_KEY  = 'noet_sk';
   const PROF_KEY  = 'noet_profile';
   const LAST_KEY  = 'noet_lastwho';
   const T = (k) => (window.t ? window.t(k) : { guest:'Гость', login:'Войти', logout:'Выйти', account:'Аккаунт', search_nav:'Поиск', relay_nav:'Реле', hide:'Спрятать', edit_page:'Редактировать' }[k] || k);
@@ -51,8 +51,8 @@
   const changeCbs = new Set();
   let _popup = null;
   function openLoginPopup() {
-    if (_popup && !_popup.closed) { try { _popup.focus(); } catch {} return; }
-    _popup = window.open(ID_ORIGIN + '/?popup=1', 'noet-login');
+    // всё на одном origin реестра → popup не нужен, просто идём на страницу входа
+    location.href = '/id';
   }
   window.addEventListener('message', (e) => {
     if (e.origin !== ID_ORIGIN) return;
@@ -144,7 +144,7 @@
   }
   function renderMenu() {
     const m = state.me || {};
-    let html = `<a href="http://noet.nt/">⌕ ${T('search_nav')}</a><a href="http://relay.nt/">◇ ${T('relay_nav')}</a><a href="http://id.nt/">○ ${T('account')}</a><div class=sep></div>`;
+    let html = `<a href="/">⌕ ${T('search_nav')}</a><a href="/relay">◇ ${T('relay_nav')}</a><a href="/id">○ ${T('account')}</a><div class=sep></div>`;
     if (m.loggedIn) {
       html += `<button id=logout>⏻ ${T('logout')}</button>`;
     } else {
