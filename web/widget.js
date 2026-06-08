@@ -25,14 +25,14 @@
   /* ---- прямые вызовы ---- */
   async function directWhoami() {
     const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) return { loggedIn: false, hasKey: !!localStorage.getItem(NSEC_KEY) };
+    if (!token) return { loggedIn: false, hasKey: !!window.nostr || !!localStorage.getItem(NSEC_KEY) };
     try {
       const r = await fetch('/api/me', { headers: { authorization: 'Bearer ' + token } });
-      if (!r.ok) { localStorage.removeItem(TOKEN_KEY); return { loggedIn: false, hasKey: !!localStorage.getItem(NSEC_KEY) }; }
+      if (!r.ok) { localStorage.removeItem(TOKEN_KEY); return { loggedIn: false, hasKey: !!window.nostr || !!localStorage.getItem(NSEC_KEY) }; }
       const m = await r.json();
       let profile = null; try { profile = JSON.parse(localStorage.getItem(PROF_KEY) || 'null'); } catch {}
       return { loggedIn: true, pubkey: m.pubkey, handle: m.handle, profile, hasKey: true };
-    } catch { return { loggedIn: false, hasKey: !!localStorage.getItem(NSEC_KEY) }; }
+    } catch { return { loggedIn: false, hasKey: !!window.nostr || !!localStorage.getItem(NSEC_KEY) }; }
   }
 
   async function localSign(event) {
@@ -78,7 +78,7 @@
 
   const Noet = window.Noet = {
     whoami: directWhoami,
-    signEvent: ({ event }) => localSign(event),
+    signEvent: ({ event }) => (window.nostr ? window.nostr.signEvent(event) : localSign(event)),
     logout: () => {
       localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NSEC_KEY); localStorage.removeItem(PROF_KEY);
       refresh(); changeCbs.forEach(cb => { try { cb(); } catch {} });

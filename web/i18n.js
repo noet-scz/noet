@@ -12,6 +12,7 @@
       gate_read: 'Войди, чтобы видеть реле.', today: 'сегодня', yesterday: 'вчера',
       // account
       acc_welcome: 'Личность noet', acc_guest_hint: 'Ты не вошёл. Личность это твой ключ, без почты и паролей.',
+      ext_create_hint: 'Создай личность в расширении noet: нажми на иконку noet в браузере, затем «Создать личность». После этого обнови эту страницу.', reload: 'Обновить',
       create_identity: 'Создать личность', have_key: 'У меня уже есть ключ', import_key: 'Импортировать ключ',
       import_ph: 'приватный ключ (64 hex)', key_ready: 'Ключ готов и сохранён в этом браузере.',
       download_backup: 'Скачать бэкап', backup_warn: 'Сохрани бэкап. Потеряешь ключ — потеряешь личность.',
@@ -44,6 +45,7 @@
       reply: 'Reply', reply_to: 'replying to', cancel: 'Cancel',
       gate_read: 'Sign in to see the relay.', today: 'today', yesterday: 'yesterday',
       acc_welcome: 'noet identity', acc_guest_hint: 'You are not signed in. Your identity is a key, no email or passwords.',
+      ext_create_hint: 'Create your identity in the noet extension: click the noet icon in the browser, then "Create identity". Then reload this page.', reload: 'Reload',
       create_identity: 'Create identity', have_key: 'I already have a key', import_key: 'Import key',
       import_ph: 'private key (64 hex)', key_ready: 'Key is ready and stored in this browser.',
       download_backup: 'Download backup', backup_warn: 'Save the backup. Lose the key, lose the identity.',

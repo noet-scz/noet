@@ -17,7 +17,7 @@ const nip07 = () => !!window.nostr;
 const getSk = () => LS.getItem(K_SK);
 
 async function pubkey() {
-  if (nip07()) return await window.nostr.getPublicKey();
+  if (nip07()) { try { return await window.nostr.getPublicKey(); } catch (e) { if (!getSk()) throw Object.assign(e, { code: e.code || 'no_key' }); } }
   const sk = getSk();
   if (!sk) throw Object.assign(new Error('no key'), { code: 'no_key' });
   return hex(schnorr.getPublicKey(fromHex(sk)));
@@ -25,7 +25,7 @@ async function pubkey() {
 const serialize = (ev) => JSON.stringify([0, ev.pubkey, ev.created_at, ev.kind, ev.tags, ev.content]);
 async function sign(ev) {
   ev.created_at = ev.created_at || Math.floor(Date.now() / 1000); ev.tags = ev.tags || []; ev.content = ev.content || '';
-  if (nip07()) return await window.nostr.signEvent(ev);
+  if (nip07()) { try { return await window.nostr.signEvent(ev); } catch (e) { if (!getSk()) throw e; } }
   ev.pubkey = await pubkey(); ev.id = sha256hex(serialize(ev));
   ev.sig = hex(await schnorr.sign(fromHex(ev.id), fromHex(getSk())));
   return ev;
@@ -43,9 +43,10 @@ const OPS = {
     let loggedIn = false, pk = null, handle = null;
     const t = LS.getItem(K_TOK);
     if (t) { try { const m = await api('/api/me', { headers: authH() }); loggedIn = true; pk = m.pubkey; handle = m.handle; } catch { LS.removeItem(K_TOK); } }
-    if (!pk && (nip07() || getSk())) { try { pk = await pubkey(); } catch {} }
+    let extNoKey = false;
+    if (!pk && (nip07() || getSk())) { try { pk = await pubkey(); } catch { if (nip07() && !getSk()) extNoKey = true; } }
     let profile = null; try { profile = JSON.parse(LS.getItem(K_PROF) || 'null'); } catch {}
-    return { loggedIn, pubkey: pk, handle, profile, nip07: nip07(), hasKey: nip07() || !!getSk() };
+    return { loggedIn, pubkey: pk, handle, profile, nip07: nip07(), hasKey: !!(pk || getSk()), extNoKey };
   },
   async genKey() { const sk = hex(schnorr.utils.randomPrivateKey()); LS.setItem(K_SK, sk); return { pubkey: hex(schnorr.getPublicKey(fromHex(sk))), nsec: sk }; },
   async importKey({ nsec }) {
@@ -136,6 +137,7 @@ function renderApp() {
     }
     await refresh();
     if (state.me && state.me.loggedIn) state.view = 'profile';
+    else if (state.me && state.me.extNoKey) state.view = 'ext_nokey';
     else if (state.me && state.me.hasKey) {
       try { await OPS.login({}); await refresh(); state.view = 'profile'; }
       catch { state.view = 'register'; }
@@ -158,6 +160,12 @@ function renderApp() {
         <div class="msg err" id="msg"></div>
         <div class="sep"></div>
         <div class="or"><button class="lnk" id="create">${t('create_identity')}</button></div>
+      </div>`;
+    } else if (state.view === 'ext_nokey') {
+      body = `<div class="card">
+        <h1>${t('acc_welcome')}</h1>
+        <p class="mut">${t('ext_create_hint')}</p>
+        <button class="btn big" id="reloadpage">${t('reload')}</button>
       </div>`;
     } else if (state.view === 'register') {
       body = `<div class="card">
@@ -264,6 +272,7 @@ function renderApp() {
   function wire() {
     document.querySelectorAll('.lang button').forEach((b) => b.onclick = () => window.setLang(b.dataset.l));
     const id = (x) => document.getElementById(x), on = (x, fn) => { const el = id(x); if (el) el.onclick = fn; };
+    on('reloadpage', () => location.reload());
     on('create', async () => {
       if (!confirm('Создать новый ключ? Только если у тебя его нет. Старый ключ станет недоступен.')) return;
       try { const r = await OPS.genKey(); state.justKey = r.nsec; download('noet-ключ.txt', backupText(r.nsec, r.pubkey)); await refresh(); state.view = 'register'; render(); }
