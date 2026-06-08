@@ -1,6 +1,5 @@
 dist/_ext.zip
 extension/key.pem
-ext/_test.html
 invites.json
 members.json
 names.cache.json
@@ -9,3 +8,4 @@ registry.json
 registry.seed.json
 relay-events.json
 .session-secret
+tools/

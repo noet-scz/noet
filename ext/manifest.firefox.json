@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "noet",
+  "version": "1.0.0",
+  "description": "Открывает имена noet (.nt, .me) прямо в браузере. Контент из IPFS, без серверов.",
+  "browser_specific_settings": { "gecko": { "id": "noet@noet-scz", "strict_min_version": "115.0" } },
+  "permissions": ["webNavigation", "tabs", "storage"],
+  "background": { "scripts": ["bg.js"] },
+  "action": { "default_title": "noet" },
+  "web_accessible_resources": [
+    { "resources": ["view.html", "view.js", "config.default.json", "app/*", "logo.svg", "vendor/*"], "matches": ["<all_urls>"] }
+  ]
+}
