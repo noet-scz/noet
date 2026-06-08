@@ -75,6 +75,7 @@ const OPS = {
   },
   async publish({ name, title, body, mode }) { return await api('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ name, title, body, mode }) }); },
   async publishDir({ sub, files }) { return await api('/api/publish-dir', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ sub, files }) }); },
+  async myNames(pk) { const all = await api('/api/names'); return Object.entries(all).filter(([, v]) => v.owner === pk).map(([n]) => n).sort(); },
 };
 
 /* ---------- popup-режим (открыт другой страницей noet) ---------- */
@@ -124,7 +125,7 @@ function renderApp() {
   const header = () => `<div class="hd"><a class="brand" href="http://search.nt/"><img src="/logo.svg" alt=""><b>noet</b></a></div>`;
 
   let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'pick', edHtml: '', edFiles: [],
-    edSub: '', edPreset: 'other', edEnvs: [] };
+    edSub: '', edPreset: 'other', edEnvs: [], myNames: [] };
 
   // пресеты фреймворков (как у Vercel): команда сборки + папка вывода. Сборка локальная,
   // эти поля подсказывают, что запустить и какую папку выбрать.
@@ -163,7 +164,10 @@ function renderApp() {
     return out;
   }
 
-  async function refresh() { try { state.me = await OPS.whoami(); } catch { state.me = null; } }
+  async function refresh() {
+    try { state.me = await OPS.whoami(); } catch { state.me = null; }
+    if (state.me && state.me.pubkey) { try { state.myNames = await OPS.myNames(state.me.pubkey); } catch { state.myNames = []; } }
+  }
 
   async function init() {
     // Popup-режим: пробуем тихо авторизоваться и закрыть
@@ -232,6 +236,12 @@ function renderApp() {
         <a href="${esc(pageUrl)}" style="font-size:1.05rem;color:var(--acc2)">${esc(me.handle)}.me</a></div>
         <button class="btn ghost" id="goedit" style="margin-top:0">${t('edit_page')}</button>
       </div></div>` : ''}
+      ${me.handle ? `<div class="card">
+        <div class="mut" style="font-size:.8rem;margin-bottom:.5rem">${t('my_sites')}</div>
+        ${(state.myNames || []).filter((n) => n !== me.handle + '.me').map((n) => `<a href="http://${esc(n)}/" target="_blank" style="display:block;color:var(--acc2);margin-bottom:.35rem">${esc(n)}</a>`).join('') || `<div class="mut" style="font-size:.88rem">${t('no_sites')}</div>`}
+        ${(state.myNames || []).includes('dash.' + me.handle + '.me') ? '' : `<button class="btn ghost" id="mkdash" style="margin-top:.5rem">${t('make_dash')}</button>`}
+        <div class="msg" id="dashmsg"></div>
+      </div>` : ''}
       <div class="card">
         <div class="row2">
           ${me.hasKey && !me.nip07 ? `<button class="btn ghost" id="backup">${t('show_backup')}</button>` : ''}
@@ -389,6 +399,18 @@ function renderApp() {
       } catch (e) { setMsg('pmsg', errText(e), 'err'); }
     });
     on('goedit', () => enterEditor());
+    on('mkdash', async () => {
+      setMsg('dashmsg', '…', '');
+      try {
+        const html = await (await fetch('https://noet-scz.github.io/noet/sites/dashboard/index.html', { cache: 'no-cache' })).text();
+        const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
+        const files = [{ path: 'index.html', data: b64(html) }, { path: 'noet.env.json', data: b64(JSON.stringify({ APP: (state.me || {}).handle })) }];
+        const r = await OPS.publishDir({ sub: 'dash', files });
+        const el = id('dashmsg'); el.className = 'msg ok'; el.textContent = t('dash_made') + ' ';
+        const a = document.createElement('a'); a.href = 'http://' + r.name + '/'; a.textContent = r.name; a.target = '_blank'; el.appendChild(a);
+        await refresh();
+      } catch (e) { setMsg('dashmsg', errText(e), 'err'); }
+    });
     on('edback', () => { state.view = 'profile'; render(); });
     // выбор типа
     on('pick_text', () => { state.edMode = 'text'; render(); });
