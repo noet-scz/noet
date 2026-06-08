@@ -6,7 +6,11 @@
   "browser_specific_settings": { "gecko": { "id": "noet@noet-scz", "strict_min_version": "115.0" } },
   "permissions": ["webNavigation", "tabs", "storage"],
   "background": { "scripts": ["bg.js"] },
-  "action": { "default_title": "noet" },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": {
+    "default_title": "noet",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
+  },
   "web_accessible_resources": [
     { "resources": ["view.html", "view.js", "config.default.json", "app/*", "logo.svg", "vendor/*"], "matches": ["<all_urls>"] }
   ]
