@@ -74,6 +74,7 @@ const OPS = {
     return { event: ev };
   },
   async publish({ name, title, body, mode }) { return await api('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ name, title, body, mode }) }); },
+  async publishDir({ name, files }) { return await api('/api/publish-dir', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ name, files }) }); },
 };
 
 /* ---------- popup-режим (открыт другой страницей noet) ---------- */
@@ -122,7 +123,23 @@ function renderApp() {
 
   const header = () => `<div class="hd"><a class="brand" href="http://search.nt/"><img src="/logo.svg" alt=""><b>noet</b></a></div>`;
 
-  let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'text', edHtml: '' };
+  let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'text', edHtml: '', edFiles: [] };
+
+  // прочитать выбранную папку проекта в [{path, data(base64)}], убрав общий корень (dist/)
+  async function readFolder(fl) {
+    if (!fl.length) return [];
+    const rels = fl.map((f) => f.webkitRelativePath || f.name);
+    const seg0 = rels.map((p) => p.split('/')[0]);
+    const common = (rels.some((p) => p.includes('/')) && seg0.every((s) => s === seg0[0])) ? seg0[0] + '/' : '';
+    const out = [];
+    for (let i = 0; i < fl.length; i++) {
+      let path = rels[i]; if (common && path.startsWith(common)) path = path.slice(common.length);
+      if (!path || /(^|\/)\./.test(path)) continue;   // пропускаем скрытые/.git
+      const data = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.readAsDataURL(fl[i]); });
+      out.push({ path, data });
+    }
+    return out;
+  }
 
   async function refresh() { try { state.me = await OPS.whoami(); } catch { state.me = null; } }
 
@@ -211,18 +228,25 @@ function renderApp() {
     if (state.view === 'editor') {
       const handle = (state.me || {}).handle || '';
       const siteUrl = handle ? handle + '.me' : '…';
-      const isHtml = state.edMode === 'html';
+      const isHtml = state.edMode === 'html', isDir = state.edMode === 'dir';
+      const fileN = (state.edFiles || []).length;
       root.innerHTML = `<div class="ed-page">
         <div class="ed-bar">
           <button class="lnk" id="edback">← ${t('back')}</button>
           <span class="ed-bar-url">${esc(siteUrl)}</span>
           <div class="ed-mode-toggle">
-            <button class="${!isHtml ? 'active' : ''}" id="edmode_text">Текст</button>
+            <button class="${state.edMode === 'text' ? 'active' : ''}" id="edmode_text">${t('ed_text')}</button>
             <button class="${isHtml ? 'active' : ''}" id="edmode_html">HTML</button>
+            <button class="${isDir ? 'active' : ''}" id="edmode_dir">${t('ed_project')}</button>
           </div>
           <button class="btn ed-pub-btn" id="edpub">${t('publish_btn')}</button>
         </div>
-        ${isHtml
+        ${isDir
+          ? `<div class="ed-drop"><p>${t('ed_project_hint')}</p>
+               <input type="file" id="ed_dir" webkitdirectory directory multiple hidden>
+               <button class="btn ghost" id="ed_pick">${t('ed_pick_folder')}</button>
+               <div class="mut" id="ed_files">${fileN ? fileN + ' ' + t('ed_files_n') : ''}</div></div>`
+          : isHtml
           ? `<textarea class="ed-area ed-code" id="ed_html" spellcheck="false" placeholder="&lt;!doctype html&gt;&#10;&lt;html&gt;...">${esc(state.edHtml)}</textarea>`
           : `<input class="ed-title-full" id="ed_title" placeholder="${t('page_title_ph')}" value="${esc(state.edTitle)}">
              <textarea class="ed-area" id="ed_body" placeholder="${t('page_body_ph')}">${esc(state.edBody)}</textarea>`
@@ -240,7 +264,7 @@ function renderApp() {
   function setMsg(id, text, cls) { const e = document.getElementById(id); if (e) { e.textContent = text; e.className = 'msg ' + (cls || ''); } }
 
   async function enterEditor() {
-    state.view = 'editor'; state.edTitle = ''; state.edBody = ''; state.edHtml = ''; state.edMode = 'text';
+    state.view = 'editor'; state.edTitle = ''; state.edBody = ''; state.edHtml = ''; state.edMode = 'text'; state.edFiles = [];
     const handle = (state.me || {}).handle;
     if (handle) {
       try {
@@ -305,27 +329,34 @@ function renderApp() {
     });
     on('goedit', () => enterEditor());
     on('edback', () => { state.view = 'profile'; render(); });
-    on('edmode_text', () => {
+    const saveEd = () => {
       if (state.edMode === 'html') { const el = id('ed_html'); if (el) state.edHtml = el.value; }
-      state.edMode = 'text'; render();
-    });
-    on('edmode_html', () => {
-      if (state.edMode === 'text') { const t = id('ed_title'), b = id('ed_body'); if (t) state.edTitle = t.value; if (b) state.edBody = b.value; }
-      state.edMode = 'html'; render();
+      else if (state.edMode === 'text') { const tt = id('ed_title'), b = id('ed_body'); if (tt) state.edTitle = tt.value; if (b) state.edBody = b.value; }
+    };
+    on('edmode_text', () => { saveEd(); state.edMode = 'text'; render(); });
+    on('edmode_html', () => { saveEd(); state.edMode = 'html'; render(); });
+    on('edmode_dir', () => { saveEd(); state.edMode = 'dir'; render(); });
+    on('ed_pick', () => { const i = id('ed_dir'); if (i) i.click(); });
+    const dirInput = id('ed_dir');
+    if (dirInput) dirInput.addEventListener('change', async () => {
+      setMsg('edmsg', '…', '');
+      try { state.edFiles = await readFolder([...dirInput.files]); } catch { state.edFiles = []; }
+      render();
     });
     on('edpub', async () => {
       setMsg('edmsg', '…', '');
       try {
         let r;
-        if (state.edMode === 'html') {
+        if (state.edMode === 'dir') {
+          if (!(state.edFiles && state.edFiles.length)) { setMsg('edmsg', t('ed_no_files'), 'err'); return; }
+          r = await OPS.publishDir({ files: state.edFiles });
+        } else if (state.edMode === 'html') {
           const html = (id('ed_html').value || '').trim();
-          r = await OPS.publish({ body: html, mode: 'html' });
-          state.edHtml = html;
+          r = await OPS.publish({ body: html, mode: 'html' }); state.edHtml = html;
         } else {
           const title = (id('ed_title').value || '').trim();
           const body = id('ed_body').value || '';
-          r = await OPS.publish({ title, body });
-          state.edTitle = title; state.edBody = body;
+          r = await OPS.publish({ title, body }); state.edTitle = title; state.edBody = body;
         }
         const el = id('edmsg'); el.className = 'msg ok';
         el.textContent = t('published') + ' ';

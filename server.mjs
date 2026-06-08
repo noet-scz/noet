@@ -82,6 +82,26 @@ async function ipfsAdd(filename, content) {
   if (!dir) throw new Error('ipfs add: нет CID директории');
   return dir.Hash;
 }
+// добавить целую директорию (собранный проект): много файлов с относительными
+// путями -> kubo wrap-with-directory -> CID корня (обёртка, Name=="")
+async function ipfsAddDir(files) {
+  const boundary = '----noet' + Math.random().toString(16).slice(2);
+  const parts = [];
+  for (const f of files) {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${encodeURIComponent(f.path)}"\r\nContent-Type: application/octet-stream\r\n\r\n`));
+    parts.push(Buffer.isBuffer(f.content) ? f.content : Buffer.from(f.content));
+    parts.push(Buffer.from('\r\n'));
+  }
+  parts.push(Buffer.from(`--${boundary}--\r\n`));
+  const r = await fetch(`${IPFS_API}/api/v0/add?cid-version=1&wrap-with-directory=true&pin=true`, {
+    method: 'POST', headers: { 'content-type': `multipart/form-data; boundary=${boundary}` }, body: Buffer.concat(parts),
+  });
+  if (!r.ok) throw new Error('ipfs add ' + r.status);
+  const lines = (await r.text()).trim().split('\n').map((l) => { try { return JSON.parse(l); } catch { return {}; } });
+  const root = lines.find((o) => o.Name === '' && o.Hash);
+  if (!root) throw new Error('ipfs add: нет CID директории');
+  return root.Hash;
+}
 // seed-пиннинг (реестр): подтянуть CID из сети, закрепить и анонсировать в DHT,
 // чтобы публичные шлюзы у клиентов находили контент даже когда автор офлайн
 async function ipfsPin(cid) {
@@ -429,6 +449,38 @@ const server = http.createServer(async (req, res) => {
         recTitle = title || name; rawData = { title, body };
       }
       reg.names[name] = { cid, owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: recTitle, raw: rawData };
+      saveReg(); ipfsPin(cid); pushNamesToGitHub(); index.delete(name); crawl();
+      return sendJson(res, 201, { name, cid, title: recTitle });
+    }
+    // публикация целого собранного проекта (фреймворк/игра): много файлов -> директория в IPFS
+    if (req.method === 'POST' && path === '/api/publish-dir') {
+      const pk = auth.sessionPubkey(bearer(req));
+      if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы публиковать', code: 'need_login' });
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
+      let name = String(d.name || '').toLowerCase().trim();
+      if (!name) { const h = auth.handleOf(pk); if (!h) return sendJson(res, 400, { error: 'нет хэндла', code: 'need_login' }); name = `${h}.${BLOG_TLD}`; }
+      const m = name.match(NAME_RE);
+      if (!m) return sendJson(res, 400, { error: 'короткое имя: буквы, цифры, дефис', code: 'name_format' });
+      if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'зарезервированное имя', code: 'name_format' });
+      const cur = reg.names[name];
+      if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
+      const incoming = Array.isArray(d.files) ? d.files : [];
+      if (!incoming.length) return sendJson(res, 400, { error: 'нет файлов', code: 'empty' });
+      let total = 0; const files = [];
+      for (const f of incoming) {
+        let p = String(f.path || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        if (!p || p.split('/').some((s) => s === '..')) continue;
+        const buf = Buffer.from(String(f.data || ''), 'base64');
+        total += buf.length;
+        if (total > 15 * 1024 * 1024) return sendJson(res, 413, { error: 'проект больше 15 МБ', code: 'too_big' });
+        files.push({ path: p, content: buf });
+      }
+      if (!files.some((f) => f.path === 'index.html')) return sendJson(res, 400, { error: 'нужен index.html в корне проекта', code: 'no_index' });
+      let cid; try { cid = await ipfsAddDir(files); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
+      const idx = files.find((f) => f.path === 'index.html');
+      const tm = idx.content.toString('utf8').match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      const recTitle = (tm ? tm[1].trim() : '') || name;
+      reg.names[name] = { cid, owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: recTitle, raw: { mode: 'dir' } };
       saveReg(); ipfsPin(cid); pushNamesToGitHub(); index.delete(name); crawl();
       return sendJson(res, 201, { name, cid, title: recTitle });
     }
