@@ -35,6 +35,19 @@ const GH_PATH = 'dist/names.json';
 const NAME_RE = new RegExp(`^([a-z0-9-]{1,32})\\.(${BLOG_TLD})$`, 'i');
 const RESERVED = new Set(['admin', 'root', 'sys', 'core', 'search', 'relay', 'id', 'profile', 'www', 'api']);
 
+// имя страницы/проекта ЖЁСТКО привязано к тегу пользователя: [<sub>.]<handle>.me.
+// Чужой тег не подделать (handle берётся из сессии). sub — для доп-сайтов (dash/admin/…).
+function meNameFor(pk, sub) {
+  const handle = auth && auth.handleOf(pk);
+  if (!handle) return { error: 'нет хэндла', code: 'need_login' };
+  sub = String(sub || '').toLowerCase().trim().replace(/^\.+|\.+$/g, '');
+  if (sub) {
+    if (!/^[a-z0-9-]{1,32}$/.test(sub)) return { error: 'поддомен: буквы, цифры, дефис', code: 'name_format' };
+    return { name: `${sub}.${handle}.${BLOG_TLD}` };
+  }
+  return { name: `${handle}.${BLOG_TLD}` };
+}
+
 const isBlog = (h) => h.endsWith('.' + BLOG_TLD);
 const isZone = (h) => h.endsWith('.' + ZONE_TLD);
 
@@ -386,7 +399,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && path.startsWith('/api/resolve/')) {
     const name = path.slice('/api/resolve/'.length).toLowerCase();
     const rec = reg.names[name];
-    return rec ? sendJson(res, 200, { name, cid: rec.cid, title: rec.title || name }) : sendJson(res, 404, { error: 'not found', name });
+    return rec ? sendJson(res, 200, { name, cid: rec.cid, title: rec.title || name, raw: rec.raw || null }) : sendJson(res, 404, { error: 'not found', name });
   }
 
   // ---- реестр: личность (Nostr-ключ) + запись имени + seed-пиннинг ----
@@ -426,11 +439,9 @@ const server = http.createServer(async (req, res) => {
       const pk = auth.sessionPubkey(bearer(req));
       if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы публиковать', code: 'need_login' });
       let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
-      let name = String(d.name || '').toLowerCase().trim();
-      if (!name) { const h = auth.handleOf(pk); if (!h) return sendJson(res, 400, { error: 'нет хэндла', code: 'need_login' }); name = `${h}.${BLOG_TLD}`; }
-      const m = name.match(NAME_RE);
-      if (!m) return sendJson(res, 400, { error: 'короткое имя: буквы, цифры, дефис', code: 'name_format' });
-      if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'зарезервированное имя', code: 'name_format' });
+      const nm = meNameFor(pk, d.sub);
+      if (nm.error) return sendJson(res, 400, { error: nm.error, code: nm.code });
+      const name = nm.name;
       const cur = reg.names[name];
       if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
       let cid, recTitle, rawData;
@@ -457,11 +468,9 @@ const server = http.createServer(async (req, res) => {
       const pk = auth.sessionPubkey(bearer(req));
       if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы публиковать', code: 'need_login' });
       let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
-      let name = String(d.name || '').toLowerCase().trim();
-      if (!name) { const h = auth.handleOf(pk); if (!h) return sendJson(res, 400, { error: 'нет хэндла', code: 'need_login' }); name = `${h}.${BLOG_TLD}`; }
-      const m = name.match(NAME_RE);
-      if (!m) return sendJson(res, 400, { error: 'короткое имя: буквы, цифры, дефис', code: 'name_format' });
-      if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'зарезервированное имя', code: 'name_format' });
+      const nm = meNameFor(pk, d.sub);
+      if (nm.error) return sendJson(res, 400, { error: nm.error, code: nm.code });
+      const name = nm.name;
       const cur = reg.names[name];
       if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
       const incoming = Array.isArray(d.files) ? d.files : [];

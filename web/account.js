@@ -74,7 +74,7 @@ const OPS = {
     return { event: ev };
   },
   async publish({ name, title, body, mode }) { return await api('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ name, title, body, mode }) }); },
-  async publishDir({ name, files }) { return await api('/api/publish-dir', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ name, files }) }); },
+  async publishDir({ sub, files }) { return await api('/api/publish-dir', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ sub, files }) }); },
 };
 
 /* ---------- popup-режим (открыт другой страницей noet) ---------- */
@@ -123,8 +123,8 @@ function renderApp() {
 
   const header = () => `<div class="hd"><a class="brand" href="http://search.nt/"><img src="/logo.svg" alt=""><b>noet</b></a></div>`;
 
-  let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'text', edHtml: '', edFiles: [],
-    edName: '', edPreset: 'other', edBuild: '', edOut: '.', edInstall: '', edEnvs: [] };
+  let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'pick', edHtml: '', edFiles: [],
+    edSub: '', edPreset: 'other', edEnvs: [] };
 
   // пресеты фреймворков (как у Vercel): команда сборки + папка вывода. Сборка локальная,
   // эти поля подсказывают, что запустить и какую папку выбрать.
@@ -249,28 +249,43 @@ function renderApp() {
 
     if (state.view === 'editor') {
       const handle = (state.me || {}).handle || '';
-      const siteUrl = handle ? handle + '.me' : '…';
+
+      // шаг 1: выбор типа ДО ввода (не параллельные вкладки)
+      if (state.edMode === 'pick') {
+        root.innerHTML = `<div class="ed-page">
+          <div class="ed-bar"><button class="lnk" id="edback">← ${t('back')}</button><span class="ed-bar-url">${esc(handle)}.me</span></div>
+          <div class="ed-pick">
+            <h2>${t('ed_choose')}</h2>
+            <div class="ed-pick-row">
+              <button class="ed-pick-card" id="pick_text"><b>${t('ed_text')}</b><span>${t('ed_text_d')}</span></button>
+              <button class="ed-pick-card" id="pick_html"><b>HTML</b><span>${t('ed_html_d')}</span></button>
+              <button class="ed-pick-card" id="pick_dir"><b>${t('ed_project')}</b><span>${t('ed_project_d')}</span></button>
+            </div>
+          </div></div>`;
+        wire();
+        return;
+      }
+
+      // шаг 2: редактор выбранного типа
       const isHtml = state.edMode === 'html', isDir = state.edMode === 'dir';
       const fileN = (state.edFiles || []).length;
-
-      // деплой-панель (как у Vercel) для режима «Проект»
-      const presetOpts = PRESETS.map((p) => `<option value="${p.id}"${p.id === state.edPreset ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+      const outHint = presetById(state.edPreset).out;
       const envRows = state.edEnvs.map((e, i) => `<div class="dp-env" data-i="${i}">
         <input class="dp-envk" placeholder="KEY" value="${esc(e.k)}">
         <input class="dp-envv" placeholder="${t('dp_value')}" value="${esc(e.v)}">
         <button class="dp-envdel" data-i="${i}" title="${t('cancel')}">✕</button></div>`).join('');
       const dirPanel = `<div class="ed-deploy"><div class="dp-card">
         <h2>${t('dp_title')}</h2>
-        <div class="dp-grid2">
-          <div class="dp-field"><label>${t('dp_name')}</label><div class="dp-name"><input id="dp_name" value="${esc(state.edName)}" placeholder="${esc(handle)}"><span>.me</span></div></div>
-          <div class="dp-field"><label>${t('dp_framework')}</label><div class="dp-select"><select id="dp_preset">${presetOpts}</select></div></div>
+        <div class="dp-field"><label>${t('dp_address')}</label>
+          <div class="dp-name"><input id="dp_sub" value="${esc(state.edSub)}" placeholder="${t('dp_sub_ph')}"><span>.${esc(handle)}.me</span></div>
+          <p class="dp-hint">${t('dp_address_hint').replace('{h}', handle)}</p>
         </div>
-        <details class="dp-sec" open><summary>${t('dp_build')}</summary>
-          <div class="dp-field"><label>${t('dp_build_cmd')}</label><input id="dp_buildc" value="${esc(state.edBuild)}" placeholder="npm run build"></div>
-          <div class="dp-field"><label>${t('dp_out')}</label><input id="dp_out" value="${esc(state.edOut)}" placeholder="dist"></div>
-          <div class="dp-field"><label>${t('dp_install')}</label><input id="dp_install" value="${esc(state.edInstall)}" placeholder="npm install"></div>
-          <p class="dp-hint">${t('dp_build_hint')}</p>
-        </details>
+        <div class="dp-field"><label>${t('dp_framework')}</label>
+          <div class="dp-dd" id="dp_dd">
+            <button type="button" class="dp-dd-btn" id="dp_dd_btn">${esc(presetById(state.edPreset).name)}<span class="dp-dd-arr">▾</span></button>
+            <div class="dp-dd-list" id="dp_dd_list" hidden>${PRESETS.map((p) => `<div class="dp-dd-opt${p.id === state.edPreset ? ' on' : ''}" data-id="${p.id}">${esc(p.name)}</div>`).join('')}</div>
+          </div>
+        </div>
         <details class="dp-sec"><summary>${t('dp_env')}</summary>
           <div id="dp_envs">${envRows}</div>
           <button class="lnk dp-addenv" id="dp_addenv">+ ${t('dp_add')}</button>
@@ -279,19 +294,15 @@ function renderApp() {
         <div class="dp-field dp-folderfield"><label>${t('dp_folder')}</label>
           <input type="file" id="ed_dir" webkitdirectory directory multiple hidden>
           <button class="dp-folder${fileN ? ' has' : ''}" id="ed_pick">${fileN ? '✓ ' + fileN + ' ' + t('ed_files_n') : t('ed_pick_folder')}</button>
-          <p class="dp-hint">${t('dp_folder_hint')}</p>
+          <p class="dp-hint">${t('dp_folder_hint')}${outHint && outHint !== '.' ? ' (' + t('dp_usually') + ' ' + esc(outHint) + ')' : ''}</p>
         </div>
       </div></div>`;
 
       root.innerHTML = `<div class="ed-page">
         <div class="ed-bar">
           <button class="lnk" id="edback">← ${t('back')}</button>
-          <span class="ed-bar-url">${esc(siteUrl)}</span>
-          <div class="ed-mode-toggle">
-            <button class="${state.edMode === 'text' ? 'active' : ''}" id="edmode_text">${t('ed_text')}</button>
-            <button class="${isHtml ? 'active' : ''}" id="edmode_html">HTML</button>
-            <button class="${isDir ? 'active' : ''}" id="edmode_dir">${t('ed_project')}</button>
-          </div>
+          <span class="ed-bar-url">${esc(handle)}.me</span>
+          <button class="lnk ed-changetype" id="ed_changetype">${t('ed_change_type')}</button>
           <button class="btn ed-pub-btn" id="edpub">${isDir ? t('dp_deploy') : t('publish_btn')}</button>
         </div>
         ${isDir ? dirPanel
@@ -313,20 +324,19 @@ function renderApp() {
   function setMsg(id, text, cls) { const e = document.getElementById(id); if (e) { e.textContent = text; e.className = 'msg ' + (cls || ''); } }
 
   async function enterEditor() {
-    state.view = 'editor'; state.edTitle = ''; state.edBody = ''; state.edHtml = ''; state.edMode = 'text'; state.edFiles = [];
-    state.edName = (state.me || {}).handle || ''; state.edPreset = 'other'; const p0 = presetById('other');
-    state.edBuild = p0.build; state.edOut = p0.out; state.edInstall = p0.install; state.edEnvs = [];
+    state.view = 'editor'; state.edTitle = ''; state.edBody = ''; state.edHtml = ''; state.edFiles = [];
+    state.edSub = ''; state.edPreset = 'other'; state.edEnvs = []; state.edMode = 'pick';
     const handle = (state.me || {}).handle;
     if (handle) {
       try {
         const r = await fetch(`/api/resolve/${handle}.me`);
         if (r.ok) {
           const d = await r.json();
-          if (d.raw && d.raw.mode === 'html') {
-            state.edMode = 'html'; state.edHtml = d.raw.body || '';
-          } else if (d.raw) {
-            state.edTitle = d.raw.title || ''; state.edBody = d.raw.body || '';
-          }
+          // открыть сразу в том типе, в котором было опубликовано, с загруженным содержимым
+          if (d.raw && d.raw.mode === 'html') { state.edMode = 'html'; state.edHtml = d.raw.body || ''; }
+          else if (d.raw && d.raw.mode === 'dir') { state.edMode = 'dir'; }
+          else if (d.raw && !d.raw.placeholder && (d.raw.title != null || d.raw.body != null)) { state.edMode = 'text'; state.edTitle = d.raw.title || ''; state.edBody = d.raw.body || ''; }
+          // иначе (заглушка/пусто) — остаётся выбор типа
         }
       } catch {}
     }
@@ -380,25 +390,23 @@ function renderApp() {
     });
     on('goedit', () => enterEditor());
     on('edback', () => { state.view = 'profile'; render(); });
-    const saveEd = () => {
-      if (state.edMode === 'html') { const el = id('ed_html'); if (el) state.edHtml = el.value; }
-      else if (state.edMode === 'text') { const tt = id('ed_title'), b = id('ed_body'); if (tt) state.edTitle = tt.value; if (b) state.edBody = b.value; }
-      else if (state.edMode === 'dir') saveDir();
-    };
-    // сохранить поля деплой-панели (имя/пресет/сборка/env), чтобы переживали ре-рендер
+    // выбор типа
+    on('pick_text', () => { state.edMode = 'text'; render(); });
+    on('pick_html', () => { state.edMode = 'html'; render(); });
+    on('pick_dir', () => { state.edMode = 'dir'; render(); });
+    on('ed_changetype', () => { saveDir(); state.edMode = 'pick'; render(); });
+    // сохранить поля деплой-панели (поддомен/env), чтобы переживали ре-рендер
     const saveDir = () => {
-      const n = id('dp_name'); if (n) state.edName = n.value.trim();
-      const pc = id('dp_buildc'); if (pc) state.edBuild = pc.value;
-      const o = id('dp_out'); if (o) state.edOut = o.value;
-      const ins = id('dp_install'); if (ins) state.edInstall = ins.value;
-      const ps = id('dp_preset'); if (ps) state.edPreset = ps.value;
+      const n = id('dp_sub'); if (n) state.edSub = n.value.trim();
       if (id('dp_envs')) state.edEnvs = [...document.querySelectorAll('.dp-env')].map((r) => ({ k: r.querySelector('.dp-envk').value.trim(), v: r.querySelector('.dp-envv').value }));
     };
-    on('edmode_text', () => { saveEd(); state.edMode = 'text'; render(); });
-    on('edmode_html', () => { saveEd(); state.edMode = 'html'; render(); });
-    on('edmode_dir', () => { saveEd(); state.edMode = 'dir'; render(); });
-    const presetSel = id('dp_preset');
-    if (presetSel) presetSel.addEventListener('change', () => { saveDir(); const p = presetById(presetSel.value); state.edPreset = p.id; state.edBuild = p.build; state.edOut = p.out; state.edInstall = p.install; render(); });
+    // стилизованный выпадающий список фреймворка
+    const ddBtn = id('dp_dd_btn'), ddList = id('dp_dd_list');
+    if (ddBtn && ddList) {
+      ddBtn.onclick = (e) => { e.stopPropagation(); ddList.hidden = !ddList.hidden; };
+      ddList.querySelectorAll('.dp-dd-opt').forEach((o) => o.onclick = () => { saveDir(); state.edPreset = o.dataset.id; render(); });
+      document.addEventListener('click', () => { const l = id('dp_dd_list'); if (l) l.hidden = true; }, { once: true });
+    }
     on('dp_addenv', () => { saveDir(); state.edEnvs.push({ k: '', v: '' }); render(); });
     document.querySelectorAll('.dp-envdel').forEach((b) => b.onclick = () => { saveDir(); state.edEnvs.splice(+b.dataset.i, 1); render(); });
     on('ed_pick', () => { const i = id('ed_dir'); if (i) i.click(); });
@@ -418,8 +426,7 @@ function renderApp() {
           let files = state.edFiles.slice();
           const env = {}; for (const e of state.edEnvs) if (e.k) env[e.k] = e.v;
           if (Object.keys(env).length) files = files.concat([{ path: 'noet.env.json', data: btoa(unescape(encodeURIComponent(JSON.stringify(env, null, 2)))) }]);
-          const nm = state.edName ? state.edName.toLowerCase().replace(/\.me$/, '') + '.me' : undefined;
-          r = await OPS.publishDir({ name: nm, files });
+          r = await OPS.publishDir({ sub: state.edSub, files });
         } else if (state.edMode === 'html') {
           const html = (id('ed_html').value || '').trim();
           r = await OPS.publish({ body: html, mode: 'html' }); state.edHtml = html;
