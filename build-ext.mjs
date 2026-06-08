@@ -26,5 +26,10 @@ const XPI = join(DIST, 'noet-firefox.xpi');
 rmSync(XPI, { force: true });
 execSync(`cd "${FF}" && zip -r -q "${XPI}" . -x "*.DS_Store" -x "harness.html"`);
 
+// Chrome-zip: те же файлы, но без firefox-манифеста (Load unpacked после распаковки)
+const CZIP = join(DIST, 'noet-chrome.zip');
+rmSync(CZIP, { force: true });
+execSync(`cd "${EXT}" && zip -r -q "${CZIP}" . -x "manifest.firefox.json" -x "*.DS_Store" -x "harness.html"`);
+
 console.log('Firefox: dist/firefox/  и  dist/noet-firefox.xpi');
-console.log('Chrome/Vivaldi: грузить папку ext/ как есть.');
+console.log('Chrome/Vivaldi: dist/noet-chrome.zip (распаковать → Load unpacked); или папка ext/ как есть.');

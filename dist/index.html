@@ -9,63 +9,54 @@
   *{box-sizing:border-box}
   body{font:16px/1.7 system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:2rem 1.2rem 4rem}
   main{max-width:38rem;margin:0 auto}
-  h1{font-size:1.8rem;margin:0 0 .3rem}
-  .sub{color:var(--mut);margin-bottom:2rem}
-  h2{font-size:1rem;font-weight:600;margin:2rem 0 .5rem;color:var(--acc2)}
-  .step{display:inline-block;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;background:var(--acc);color:#fff;border-radius:50%;font-size:.85rem;margin-right:.4rem}
+  h1{font-size:1.9rem;margin:0 0 .3rem}
+  .sub{color:var(--mut);margin-bottom:2rem;font-size:1.05rem}
+  h2{font-size:1.05rem;font-weight:600;margin:2rem 0 .5rem;color:var(--acc2)}
   .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:.8rem}
   ol{margin:.4rem 0 0;padding-left:1.3rem}
-  li{margin:.25rem 0;color:#c3c3cd}
-  .cmd{position:relative;background:#1e1e28;border:1px solid var(--bd);border-radius:8px;padding:.7rem 1rem;margin:.6rem 0;font-family:ui-monospace,monospace;font-size:.85rem;word-break:break-all;padding-right:3rem}
-  .copy{position:absolute;right:.5rem;top:.5rem;padding:.3rem;background:transparent;border:0;cursor:pointer;color:var(--mut);border-radius:5px;line-height:0}
-  .copy:hover{color:var(--fg);background:#2a2a38}
-  .copy.ok{color:#4caf72}
-  code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.15em .45em;font-size:.9em;color:var(--fg)}
+  li{margin:.35rem 0;color:#c3c3cd}
+  code{background:#1e1e28;border:1px solid var(--bd);border-radius:5px;padding:.12em .45em;font-size:.92em;color:var(--fg)}
   a{color:var(--acc2)}
-  .note{color:var(--mut);font-size:.88rem;margin-top:.4rem}
-  .soon{color:var(--mut);font-size:.92rem}
-  .why{border-left:3px solid var(--acc);padding-left:.9rem;margin:1.5rem 0;color:#c3c3cd}
+  .dl{display:inline-flex;align-items:center;gap:.5rem;background:var(--acc);color:#fff;text-decoration:none;border-radius:9px;padding:.5rem 1rem;font-weight:600;font-size:.92rem;margin:.3rem 0}
+  .dl:hover{background:#6c4dff}
+  .note{color:var(--mut);font-size:.9rem;margin-top:.5rem}
+  .why{border-left:3px solid var(--acc);padding-left:.9rem;margin:1.4rem 0;color:#c3c3cd}
 </style>
 </head>
 <body>
 <main>
   <h1>noet</h1>
-  <p class="sub">Открывай <code>noet.nt</code> и личные страницы в браузере как обычные сайты. Контент тянется напрямую из IPFS у тебя на машине, сервер хранит только имена.</p>
+  <p class="sub">Свободный интернет прямо в браузере: сайты, которые нельзя заблокировать, удалить или отобрать.</p>
 
-  <div class="why">Один раз ставишь локальный резолвер. Дальше он работает в фоне, и любые имена noet открываются в любом браузере. Если сервер имён выключат, уже открытое и закэшированное продолжает работать.</div>
+  <div class="why">Поставь дополнение один раз. Дальше имена noet открываются в браузере как обычные сайты, а сами страницы собираются напрямую из сети, а не с одного сервера.</div>
 
-  <h2>Linux</h2>
+  <h2>Vivaldi · Chrome · Brave · Edge</h2>
   <div class="card">
-    <p><span class="step">1</span>Поставь резолвер одной командой:</p>
-    <div class="cmd">curl -fsSL https://noet-scz.github.io/noet/dist/install.sh | bash<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-    <p class="note">Ставит kubo (IPFS) и демона как фоновые сервисы. Нужен Node.js 18+.</p>
-    <p style="margin-top:1rem"><span class="step">2</span>Укажи браузеру PAC (один раз):</p>
-    <div class="cmd">echo '--proxy-pac-url=https://noet-scz.github.io/noet/dist/proxy.pac' > ~/.config/vivaldi-stable.conf<button class="copy" onclick="copy(this)" title="Скопировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-    <p class="note">Для Chrome замени файл на <code>~/.config/chrome-flags.conf</code>, для Brave на <code>~/.config/brave-flags.conf</code>. Firefox: Настройки → Сеть → URL автонастройки прокси.</p>
-    <p style="margin-top:1rem"><span class="step">3</span>Перезапусти браузер и открой <code>http://noet.nt/</code></p>
+    <a class="dl" href="noet-chrome.zip" download>Скачать дополнение (.zip)</a>
+    <ol>
+      <li>Распакуй скачанный архив в любую папку</li>
+      <li>Открой <code>chrome://extensions</code> (в Vivaldi — <code>vivaldi://extensions</code>)</li>
+      <li>Включи <b>Режим разработчика</b> справа вверху</li>
+      <li>Нажми <b>Загрузить распакованное</b> и выбери распакованную папку</li>
+      <li>Открой <code>noet.nt</code></li>
+    </ol>
   </div>
 
-  <h2>Windows и macOS</h2>
+  <h2>Firefox</h2>
   <div class="card">
-    <p class="soon">Готовый установщик резолвера в работе. Резолвер кросс-платформенный (Node + kubo), сборка под эти системы появится здесь.</p>
+    <a class="dl" href="noet-firefox.xpi" download>Скачать дополнение (.xpi)</a>
+    <ol>
+      <li>Открой <code>about:debugging#/runtime/this-firefox</code></li>
+      <li>Нажми <b>Загрузить временное дополнение</b> и выбери скачанный файл <code>.xpi</code></li>
+      <li>Открой <code>noet.nt</code></li>
+    </ol>
+    <p class="note">Во временном режиме дополнение слетает при перезапуске Firefox. Постоянная версия появится, когда дополнение будет подписано.</p>
   </div>
 
   <h2>Телефоны</h2>
   <div class="card">
-    <p class="soon">На телефоне нельзя держать локальный резолвер, поэтому прямой доступ по имени пока только на компьютере.</p>
+    <p class="note">Пока только на компьютере: мобильные браузеры не дают ставить такие дополнения.</p>
   </div>
 </main>
-<script>
-const copyIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-const checkIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-function copy(btn) {
-  const text = btn.parentElement.childNodes[0].textContent.trim();
-  navigator.clipboard.writeText(text).then(() => {
-    btn.innerHTML = checkIcon;
-    btn.classList.add('ok');
-    setTimeout(() => { btn.innerHTML = copyIcon; btn.classList.remove('ok'); }, 1500);
-  });
-}
-</script>
 </body>
 </html>

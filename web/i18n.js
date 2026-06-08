@@ -8,6 +8,7 @@
       search_ph: 'искать в noet', searching: 'ищу…', nothing: 'ничего не найдено',
       // relay
       relay_title: 'Реле', compose_ph: 'написать в реле…', send: 'Отправить',
+      reply: 'Ответить', reply_to: 'в ответ', cancel: 'Отмена',
       gate_read: 'Войди, чтобы видеть реле.', today: 'сегодня', yesterday: 'вчера',
       // account
       acc_welcome: 'Личность noet', acc_guest_hint: 'Ты не вошёл. Личность это твой ключ, без почты и паролей.',
@@ -40,6 +41,7 @@
       search_nav: 'Search', relay_nav: 'Relay', back: 'Back',
       search_ph: 'search noet', searching: 'searching…', nothing: 'nothing found',
       relay_title: 'Relay', compose_ph: 'write to the relay…', send: 'Send',
+      reply: 'Reply', reply_to: 'replying to', cancel: 'Cancel',
       gate_read: 'Sign in to see the relay.', today: 'today', yesterday: 'yesterday',
       acc_welcome: 'noet identity', acc_guest_hint: 'You are not signed in. Your identity is a key, no email or passwords.',
       create_identity: 'Create identity', have_key: 'I already have a key', import_key: 'Import key',
