@@ -9,3 +9,4 @@ registry.seed.json
 relay-events.json
 .session-secret
 tools/
+dist/firefox/

@@ -1,39 +1,36 @@
-// noet — фоновый скрипт. Ловит переходы на *.nt / *.me и уводит их на нашу
-// страницу просмотра (view.html), которая сама резолвит имя и тянет контент из
-// IPFS. Кросс-браузерно: Chrome (service worker) и Firefox (event page).
-//
-// Два механизма: declarativeNetRequest (Chrome, перехват до DNS, без вспышки) и
-// webNavigation (надёжно везде, в т.ч. Firefox). getURL даёт верную схему
-// (chrome-extension:// или moz-extension://) сам.
+// noet — фоновый скрипт. Уводит на страницу просмотра ТОЛЬКО зарегистрированные в
+// noet имена (служебные + имена из реестра). Реальные домены (t.me, любой .me/.nt
+// сайт настоящего интернета) не трогаем. Кросс-браузерно: Chrome и Firefox.
 
 const api = globalThis.browser || globalThis.chrome;
 const VIEW = api.runtime.getURL('view.html');
-const RULE_ID = 1;
+const CONFIG_URL = 'https://noet-scz.github.io/noet/dist/config.json';
+const NAMES_URL = 'https://noet-scz.github.io/noet/dist/names.json';
 
-async function ensureRule() {
-  try {
-    if (!api.declarativeNetRequest || !api.declarativeNetRequest.updateDynamicRules) return;
-    await api.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: [RULE_ID],
-      addRules: [{
-        id: RULE_ID,
-        priority: 1,
-        action: { type: 'redirect', redirect: { regexSubstitution: VIEW + '?u=\\0' } },
-        condition: { regexFilter: '^https?://[^/]+\\.(nt|me)(/.*)?$', resourceTypes: ['main_frame'] },
-      }],
-    });
-  } catch (e) { /* DNR не поддержан (например Firefox) — работает webNavigation ниже */ }
+let hosts = new Set();   // какие хосты реально наши
+
+async function loadHosts() {
+  const out = new Set();
+  try { const c = await (await fetch(CONFIG_URL, { cache: 'no-cache' })).json(); for (const k of Object.keys(c.app_hosts || {})) out.add(k.toLowerCase()); } catch {}
+  try { const n = await (await fetch(NAMES_URL, { cache: 'no-cache' })).json(); for (const k of Object.keys(n || {})) out.add(k.toLowerCase()); } catch {}
+  if (out.size) { hosts = out; try { await api.storage.local.set({ ihosts: [...out] }); } catch {} }
+  else { try { const { ihosts } = await api.storage.local.get('ihosts'); if (ihosts) hosts = new Set(ihosts); } catch {} }
+  return hosts;
+}
+async function knownHosts() {
+  if (!hosts.size) { try { const { ihosts } = await api.storage.local.get('ihosts'); if (ihosts) hosts = new Set(ihosts); } catch {} }
+  return hosts;
 }
 
-api.runtime.onInstalled.addListener(ensureRule);
-if (api.runtime.onStartup) api.runtime.onStartup.addListener(ensureRule);
-ensureRule();
+api.runtime.onInstalled.addListener(loadHosts);
+if (api.runtime.onStartup) api.runtime.onStartup.addListener(loadHosts);
+loadHosts();
 
-// Надёжный механизм для всех браузеров: SW/страница просыпается на навигацию и
-// уводит её на view.html (getURL → верная схема расширения).
-api.webNavigation.onBeforeNavigate.addListener((d) => {
+api.webNavigation.onBeforeNavigate.addListener(async (d) => {
   if (d.frameId !== 0) return;
   let h; try { h = new URL(d.url).hostname.toLowerCase(); } catch { return; }
-  if (!/\.(nt|me)$/.test(h)) return;
-  api.tabs.update(d.tabId, { url: VIEW + '?u=' + d.url });
+  if (!/\.(nt|me)$/.test(h)) return;          // быстрый отсев
+  const set = await knownHosts();
+  if (set.has(h)) { api.tabs.update(d.tabId, { url: VIEW + '?u=' + d.url }); return; }
+  loadHosts();   // незнакомое имя не угоняем; вдруг его только что завели — освежим список
 }, { url: [{ hostSuffix: '.nt' }, { hostSuffix: '.me' }] });

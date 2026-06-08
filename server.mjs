@@ -29,6 +29,9 @@ const REG_FILE = process.env.REGISTRY_FILE || join(__dir, 'registry.json');
 const SEED_FILE = join(__dir, 'registry.seed.json');
 const NAMES_CACHE = join(__dir, 'names.cache.json'); // офлайн-кэш имён (демон)
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';     // для авто-обновления https-зеркала имён
+const GH_REPO = process.env.GH_REPO || 'noet-scz/noet';
+const GH_PATH = 'dist/names.json';
 const NAME_RE = new RegExp(`^([a-z0-9-]{1,32})\\.(${BLOG_TLD})$`, 'i');
 const RESERVED = new Set(['admin', 'root', 'sys', 'core', 'search', 'relay', 'id', 'profile', 'www', 'api']);
 
@@ -125,6 +128,58 @@ function renderPage({ title, body, name, handle, template }) {
   ${blocks || '<p class="mut"></p>'}
   ${handle ? `<footer>Автор @${e(handle)}</footer>` : ''}
 </main></body></html>`;
+}
+
+// заглушка личной страницы: создаётся при регистрации, пока автор не настроил свою
+function placeholderPage(handle) {
+  const h = String(handle).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return `<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${h}.${BLOG_TLD}</title><link rel="icon" href="/logo.svg">
+<style>
+  body{margin:0;min-height:100vh;background:#0a0a0c;color:#ececf2;font:16px/1.6 system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;text-align:center;padding:2rem}
+  img{width:48px;height:48px}h1{margin:0;font-size:1.6rem}p{color:#8b8b98;max-width:30rem;margin:0}
+  .h{color:#9d8bff}
+</style></head>
+<body>
+  <img src="/logo.svg" alt="">
+  <h1><span class="h">${h}</span>.${BLOG_TLD}</h1>
+  <p>Страница пока пустая. Автор её ещё не настроил.</p>
+</body></html>`;
+}
+
+// авто-обновление https-зеркала имён на GitHub Pages (его читает расширение,
+// потому что http-реестр из secure-страницы расширения недоступен). Debounce 2с.
+let ghTimer = null;
+function pushNamesToGitHub() {
+  if (!GITHUB_TOKEN || DAEMON || ghTimer) return;
+  ghTimer = setTimeout(async () => {
+    ghTimer = null;
+    try {
+      const body = {};
+      for (const [n, r] of Object.entries(reg.names)) body[n] = { cid: r.cid, title: r.title || n, owner: r.owner, owner_handle: r.owner_handle || null };
+      const content = Buffer.from(JSON.stringify(body, null, 2) + '\n').toString('base64');
+      const url = `https://api.github.com/repos/${GH_REPO}/contents/${GH_PATH}`;
+      const headers = { authorization: 'Bearer ' + GITHUB_TOKEN, accept: 'application/vnd.github+json', 'user-agent': 'noet-registry' };
+      let sha;
+      const cur = await fetch(`${url}?ref=main`, { headers, signal: AbortSignal.timeout(10000) });
+      if (cur.ok) sha = (await cur.json()).sha;
+      const r = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ message: 'update names mirror', content, sha, branch: 'main' }), signal: AbortSignal.timeout(15000) });
+      console.log(r.ok ? '[registry] зеркало имён обновлено на github' : '[registry] github mirror: ' + r.status);
+    } catch (e) { console.log('[registry] github mirror push failed:', e.message); }
+  }, 2000);
+}
+
+// при регистрации участника заводим его личную страницу handle.me с заглушкой
+async function ensureHomePage(handle, pubkey) {
+  const name = `${handle}.${BLOG_TLD}`;
+  if (reg.names[name]) return;
+  try {
+    const cid = await ipfsAdd('index.html', Buffer.from(placeholderPage(handle), 'utf8'));
+    reg.names[name] = { cid, owner: pubkey, owner_handle: handle, ts: Date.now(), title: name, raw: { placeholder: true } };
+    saveReg(); ipfsPin(cid); pushNamesToGitHub(); index.delete(name); crawl();
+  } catch (e) { console.log('[registry] ensureHomePage failed:', e.message); }
 }
 
 // ---- индекс/поиск (строится локально по синхронизированным именам) ----
@@ -321,7 +376,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && path === '/api/auth/login') {
       let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json' }); }
       const r = await auth.login(d);
-      if (r.ok) return sendJson(res, 200, r);
+      if (r.ok) { if (r.registered) await ensureHomePage(r.handle, r.pubkey); return sendJson(res, 200, r); }
       return sendJson(res, r.code || 400, { error: r.error, code: r.errcode || 'generic' });
     }
     if (req.method === 'GET' && path === '/api/me') {
@@ -343,7 +398,7 @@ const server = http.createServer(async (req, res) => {
       const cur = reg.names[name];
       if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken', owner_handle: cur.owner_handle || null });
       reg.names[name] = { cid: String(d.cid).trim(), owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: d.title || name };
-      saveReg(); ipfsPin(reg.names[name].cid); index.delete(name); crawl();
+      saveReg(); ipfsPin(reg.names[name].cid); pushNamesToGitHub(); index.delete(name); crawl();
       return sendJson(res, 201, { name, ...reg.names[name] });
     }
     // публикация страницы: рендер/сырой html -> IPFS -> занять имя -> seed-пин + анонс
@@ -374,7 +429,7 @@ const server = http.createServer(async (req, res) => {
         recTitle = title || name; rawData = { title, body };
       }
       reg.names[name] = { cid, owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: recTitle, raw: rawData };
-      saveReg(); ipfsPin(cid); index.delete(name); crawl();
+      saveReg(); ipfsPin(cid); pushNamesToGitHub(); index.delete(name); crawl();
       return sendJson(res, 201, { name, cid, title: recTitle });
     }
   }
@@ -450,6 +505,7 @@ server.listen(PORT, '0.0.0.0', async () => {
     setInterval(async () => { await syncNames(); await crawl(); }, 60 * 1000);
   } else {
     console.log(`[registry] :${PORT} · имён: ${Object.keys(reg.names).length} · реле on`);
+    pushNamesToGitHub();   // освежить https-зеркало имён на старте
     await crawl();
     setInterval(crawl, 5 * 60 * 1000);
   }
