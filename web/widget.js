@@ -78,7 +78,12 @@
 
   const Noet = window.Noet = {
     whoami: directWhoami,
-    signEvent: ({ event }) => (window.nostr ? window.nostr.signEvent(event) : localSign(event)),
+    signEvent: async ({ event }) => {
+      // расширение (window.nostr) приоритетно, но если в нём нет ключа/ошибка —
+      // падаем на локальный ключ, чтобы вход старым ключом продолжал работать
+      if (window.nostr) { try { return await window.nostr.signEvent(event); } catch (e) { if (!localStorage.getItem(NSEC_KEY)) throw e; } }
+      return localSign(event);
+    },
     logout: () => {
       localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(NSEC_KEY); localStorage.removeItem(PROF_KEY);
       refresh(); changeCbs.forEach(cb => { try { cb(); } catch {} });

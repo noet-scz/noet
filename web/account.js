@@ -123,7 +123,29 @@ function renderApp() {
 
   const header = () => `<div class="hd"><a class="brand" href="http://search.nt/"><img src="/logo.svg" alt=""><b>noet</b></a></div>`;
 
-  let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'text', edHtml: '', edFiles: [] };
+  let state = { view: 'loading', me: null, justKey: null, edTitle: '', edBody: '', edMode: 'text', edHtml: '', edFiles: [],
+    edName: '', edPreset: 'other', edBuild: '', edOut: '.', edInstall: '', edEnvs: [] };
+
+  // пресеты фреймворков (как у Vercel): команда сборки + папка вывода. Сборка локальная,
+  // эти поля подсказывают, что запустить и какую папку выбрать.
+  const PRESETS = [
+    { id: 'other', name: 'Статичный HTML / другое', build: '', out: '.', install: '' },
+    { id: 'vite', name: 'Vite', build: 'npm run build', out: 'dist', install: 'npm install' },
+    { id: 'cra', name: 'React (Create React App)', build: 'npm run build', out: 'build', install: 'npm install' },
+    { id: 'next', name: 'Next.js (static export)', build: 'npm run build', out: 'out', install: 'npm install' },
+    { id: 'nuxt', name: 'Nuxt (static)', build: 'npm run generate', out: 'dist', install: 'npm install' },
+    { id: 'vue', name: 'Vue', build: 'npm run build', out: 'dist', install: 'npm install' },
+    { id: 'svelte', name: 'Svelte / SvelteKit (static)', build: 'npm run build', out: 'build', install: 'npm install' },
+    { id: 'astro', name: 'Astro', build: 'npm run build', out: 'dist', install: 'npm install' },
+    { id: 'angular', name: 'Angular', build: 'ng build', out: 'dist', install: 'npm install' },
+    { id: 'solid', name: 'SolidStart (static)', build: 'npm run build', out: 'dist', install: 'npm install' },
+    { id: 'preact', name: 'Preact', build: 'npm run build', out: 'build', install: 'npm install' },
+    { id: 'gatsby', name: 'Gatsby', build: 'gatsby build', out: 'public', install: 'npm install' },
+    { id: 'eleventy', name: 'Eleventy', build: 'npx @11ty/eleventy', out: '_site', install: 'npm install' },
+    { id: 'hugo', name: 'Hugo', build: 'hugo', out: 'public', install: '' },
+    { id: 'jekyll', name: 'Jekyll', build: 'jekyll build', out: '_site', install: 'bundle install' },
+  ];
+  const presetById = (id) => PRESETS.find((p) => p.id === id) || PRESETS[0];
 
   // прочитать выбранную папку проекта в [{path, data(base64)}], убрав общий корень (dist/)
   async function readFolder(fl) {
@@ -230,6 +252,37 @@ function renderApp() {
       const siteUrl = handle ? handle + '.me' : '…';
       const isHtml = state.edMode === 'html', isDir = state.edMode === 'dir';
       const fileN = (state.edFiles || []).length;
+
+      // деплой-панель (как у Vercel) для режима «Проект»
+      const presetOpts = PRESETS.map((p) => `<option value="${p.id}"${p.id === state.edPreset ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+      const envRows = state.edEnvs.map((e, i) => `<div class="dp-env" data-i="${i}">
+        <input class="dp-envk" placeholder="KEY" value="${esc(e.k)}">
+        <input class="dp-envv" placeholder="${t('dp_value')}" value="${esc(e.v)}">
+        <button class="dp-envdel" data-i="${i}" title="${t('cancel')}">✕</button></div>`).join('');
+      const dirPanel = `<div class="ed-deploy"><div class="dp-card">
+        <h2>${t('dp_title')}</h2>
+        <div class="dp-grid2">
+          <div class="dp-field"><label>${t('dp_name')}</label><div class="dp-name"><input id="dp_name" value="${esc(state.edName)}" placeholder="${esc(handle)}"><span>.me</span></div></div>
+          <div class="dp-field"><label>${t('dp_framework')}</label><div class="dp-select"><select id="dp_preset">${presetOpts}</select></div></div>
+        </div>
+        <details class="dp-sec" open><summary>${t('dp_build')}</summary>
+          <div class="dp-field"><label>${t('dp_build_cmd')}</label><input id="dp_buildc" value="${esc(state.edBuild)}" placeholder="npm run build"></div>
+          <div class="dp-field"><label>${t('dp_out')}</label><input id="dp_out" value="${esc(state.edOut)}" placeholder="dist"></div>
+          <div class="dp-field"><label>${t('dp_install')}</label><input id="dp_install" value="${esc(state.edInstall)}" placeholder="npm install"></div>
+          <p class="dp-hint">${t('dp_build_hint')}</p>
+        </details>
+        <details class="dp-sec"><summary>${t('dp_env')}</summary>
+          <div id="dp_envs">${envRows}</div>
+          <button class="lnk dp-addenv" id="dp_addenv">+ ${t('dp_add')}</button>
+          <p class="dp-hint">${t('dp_env_hint')}</p>
+        </details>
+        <div class="dp-field dp-folderfield"><label>${t('dp_folder')}</label>
+          <input type="file" id="ed_dir" webkitdirectory directory multiple hidden>
+          <button class="dp-folder${fileN ? ' has' : ''}" id="ed_pick">${fileN ? '✓ ' + fileN + ' ' + t('ed_files_n') : t('ed_pick_folder')}</button>
+          <p class="dp-hint">${t('dp_folder_hint')}</p>
+        </div>
+      </div></div>`;
+
       root.innerHTML = `<div class="ed-page">
         <div class="ed-bar">
           <button class="lnk" id="edback">← ${t('back')}</button>
@@ -239,13 +292,9 @@ function renderApp() {
             <button class="${isHtml ? 'active' : ''}" id="edmode_html">HTML</button>
             <button class="${isDir ? 'active' : ''}" id="edmode_dir">${t('ed_project')}</button>
           </div>
-          <button class="btn ed-pub-btn" id="edpub">${t('publish_btn')}</button>
+          <button class="btn ed-pub-btn" id="edpub">${isDir ? t('dp_deploy') : t('publish_btn')}</button>
         </div>
-        ${isDir
-          ? `<div class="ed-drop"><p>${t('ed_project_hint')}</p>
-               <input type="file" id="ed_dir" webkitdirectory directory multiple hidden>
-               <button class="btn ghost" id="ed_pick">${t('ed_pick_folder')}</button>
-               <div class="mut" id="ed_files">${fileN ? fileN + ' ' + t('ed_files_n') : ''}</div></div>`
+        ${isDir ? dirPanel
           : isHtml
           ? `<textarea class="ed-area ed-code" id="ed_html" spellcheck="false" placeholder="&lt;!doctype html&gt;&#10;&lt;html&gt;...">${esc(state.edHtml)}</textarea>`
           : `<input class="ed-title-full" id="ed_title" placeholder="${t('page_title_ph')}" value="${esc(state.edTitle)}">
@@ -265,6 +314,8 @@ function renderApp() {
 
   async function enterEditor() {
     state.view = 'editor'; state.edTitle = ''; state.edBody = ''; state.edHtml = ''; state.edMode = 'text'; state.edFiles = [];
+    state.edName = (state.me || {}).handle || ''; state.edPreset = 'other'; const p0 = presetById('other');
+    state.edBuild = p0.build; state.edOut = p0.out; state.edInstall = p0.install; state.edEnvs = [];
     const handle = (state.me || {}).handle;
     if (handle) {
       try {
@@ -332,14 +383,28 @@ function renderApp() {
     const saveEd = () => {
       if (state.edMode === 'html') { const el = id('ed_html'); if (el) state.edHtml = el.value; }
       else if (state.edMode === 'text') { const tt = id('ed_title'), b = id('ed_body'); if (tt) state.edTitle = tt.value; if (b) state.edBody = b.value; }
+      else if (state.edMode === 'dir') saveDir();
+    };
+    // сохранить поля деплой-панели (имя/пресет/сборка/env), чтобы переживали ре-рендер
+    const saveDir = () => {
+      const n = id('dp_name'); if (n) state.edName = n.value.trim();
+      const pc = id('dp_buildc'); if (pc) state.edBuild = pc.value;
+      const o = id('dp_out'); if (o) state.edOut = o.value;
+      const ins = id('dp_install'); if (ins) state.edInstall = ins.value;
+      const ps = id('dp_preset'); if (ps) state.edPreset = ps.value;
+      if (id('dp_envs')) state.edEnvs = [...document.querySelectorAll('.dp-env')].map((r) => ({ k: r.querySelector('.dp-envk').value.trim(), v: r.querySelector('.dp-envv').value }));
     };
     on('edmode_text', () => { saveEd(); state.edMode = 'text'; render(); });
     on('edmode_html', () => { saveEd(); state.edMode = 'html'; render(); });
     on('edmode_dir', () => { saveEd(); state.edMode = 'dir'; render(); });
+    const presetSel = id('dp_preset');
+    if (presetSel) presetSel.addEventListener('change', () => { saveDir(); const p = presetById(presetSel.value); state.edPreset = p.id; state.edBuild = p.build; state.edOut = p.out; state.edInstall = p.install; render(); });
+    on('dp_addenv', () => { saveDir(); state.edEnvs.push({ k: '', v: '' }); render(); });
+    document.querySelectorAll('.dp-envdel').forEach((b) => b.onclick = () => { saveDir(); state.edEnvs.splice(+b.dataset.i, 1); render(); });
     on('ed_pick', () => { const i = id('ed_dir'); if (i) i.click(); });
     const dirInput = id('ed_dir');
     if (dirInput) dirInput.addEventListener('change', async () => {
-      setMsg('edmsg', '…', '');
+      saveDir(); setMsg('edmsg', '…', '');
       try { state.edFiles = await readFolder([...dirInput.files]); } catch { state.edFiles = []; }
       render();
     });
@@ -348,8 +413,13 @@ function renderApp() {
       try {
         let r;
         if (state.edMode === 'dir') {
+          saveDir();
           if (!(state.edFiles && state.edFiles.length)) { setMsg('edmsg', t('ed_no_files'), 'err'); return; }
-          r = await OPS.publishDir({ files: state.edFiles });
+          let files = state.edFiles.slice();
+          const env = {}; for (const e of state.edEnvs) if (e.k) env[e.k] = e.v;
+          if (Object.keys(env).length) files = files.concat([{ path: 'noet.env.json', data: btoa(unescape(encodeURIComponent(JSON.stringify(env, null, 2)))) }]);
+          const nm = state.edName ? state.edName.toLowerCase().replace(/\.me$/, '') + '.me' : undefined;
+          r = await OPS.publishDir({ name: nm, files });
         } else if (state.edMode === 'html') {
           const html = (id('ed_html').value || '').trim();
           r = await OPS.publish({ body: html, mode: 'html' }); state.edHtml = html;
