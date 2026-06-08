@@ -69,9 +69,13 @@ async function main() {
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
-  // приложение (поиск/личность/реле) — встроенные страницы, общий origin расширения
+  // приложение: дом — встроенная страница; личность/реле — http-страницы реестра
+  // (вход и публикация идут по http там же, где http-API и ws-реле: один origin,
+  //  без mixed-content и без домена). Переход верхнего уровня на http разрешён.
   const app = (cfg.app_hosts || {})[host];
-  if (app) { location.replace(chrome.runtime.getURL(`app/${app}.html`) + '#' + host + path); return; }
+  if (app === 'home') { location.replace(chrome.runtime.getURL('app/home.html')); return; }
+  if (app && app[0] === '/') { location.href = (cfg.registry || '').replace(/\/$/, '') + app; return; }
+  if (app) { location.replace(chrome.runtime.getURL(`app/${app}.html`)); return; }
 
   // контент по имени
   setName(host);

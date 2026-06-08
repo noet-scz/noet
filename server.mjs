@@ -346,6 +346,37 @@ const server = http.createServer(async (req, res) => {
       saveReg(); ipfsPin(reg.names[name].cid); index.delete(name); crawl();
       return sendJson(res, 201, { name, ...reg.names[name] });
     }
+    // публикация страницы: рендер/сырой html -> IPFS -> занять имя -> seed-пин + анонс
+    if (req.method === 'POST' && path === '/api/publish') {
+      const pk = auth.sessionPubkey(bearer(req));
+      if (!pk) return sendJson(res, 401, { error: 'нужен вход, чтобы публиковать', code: 'need_login' });
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
+      let name = String(d.name || '').toLowerCase().trim();
+      if (!name) { const h = auth.handleOf(pk); if (!h) return sendJson(res, 400, { error: 'нет хэндла', code: 'need_login' }); name = `${h}.${BLOG_TLD}`; }
+      const m = name.match(NAME_RE);
+      if (!m) return sendJson(res, 400, { error: 'короткое имя: буквы, цифры, дефис', code: 'name_format' });
+      if (RESERVED.has(m[1]) || m[1].length === 1) return sendJson(res, 403, { error: 'зарезервированное имя', code: 'name_format' });
+      const cur = reg.names[name];
+      if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
+      let cid, recTitle, rawData;
+      if (String(d.mode || '') === 'html') {
+        const rawHtml = String(d.body || '').slice(0, 500000);
+        if (!rawHtml.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
+        const tm = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        recTitle = (tm ? tm[1].trim() : '') || name;
+        try { cid = await ipfsAdd('index.html', Buffer.from(rawHtml, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
+        rawData = { mode: 'html', body: rawHtml };
+      } else {
+        const title = String(d.title || '').slice(0, 140).trim(), body = String(d.body || '').slice(0, 20000);
+        if (!title && !body.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
+        const html = renderPage({ title, body, name, handle: auth.handleOf(pk) });
+        try { cid = await ipfsAdd('index.html', Buffer.from(html, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
+        recTitle = title || name; rawData = { title, body };
+      }
+      reg.names[name] = { cid, owner: pk, owner_handle: auth.handleOf(pk), ts: Date.now(), title: recTitle, raw: rawData };
+      saveReg(); ipfsPin(cid); index.delete(name); crawl();
+      return sendJson(res, 201, { name, cid, title: recTitle });
+    }
   }
 
   // ----- *.me (личные страницы): резолв -> локальный kubo -> отдать -----

@@ -12,7 +12,7 @@
   "app_hosts": {
     "noet.nt": "home",
     "search.nt": "home",
-    "id.nt": "soon",
-    "relay.nt": "soon"
+    "id.nt": "/id",
+    "relay.nt": "/relay"
   }
 }
