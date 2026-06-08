@@ -66,17 +66,16 @@ function renderContent(cid, gateways) {
 async function main() {
   const cfg = await loadConfig();
   const { host, path } = parseTarget(originalUrl());
-  $('#home').addEventListener('click', (e) => { e.preventDefault(); location.replace(api.runtime.getURL('app/home.html')); });
+  const regBase = (cfg.registry || '').replace(/\/$/, '');
+  $('#home').addEventListener('click', (e) => { e.preventDefault(); location.href = regBase + '/'; });
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
-  // приложение: дом — встроенная страница; личность/реле — http-страницы реестра
-  // (вход и публикация идут по http там же, где http-API и ws-реле: один origin,
-  //  без mixed-content и без домена). Переход верхнего уровня на http разрешён.
+  // приложение (дом/поиск/личность/реле) — это обычные http-страницы реестра, где
+  // вход, аккаунт и реле работают нативно (http-страница → http-API + ws, один origin,
+  // без mixed-content и без домена). Расширение только переводит туда вкладку.
   const app = (cfg.app_hosts || {})[host];
-  if (app === 'home') { location.replace(api.runtime.getURL('app/home.html')); return; }
-  if (app && app[0] === '/') { location.href = (cfg.registry || '').replace(/\/$/, '') + app; return; }
-  if (app) { location.replace(api.runtime.getURL(`app/${app}.html`)); return; }
+  if (app && app[0] === '/') { location.href = regBase + app; return; }
 
   // контент по имени
   setName(host);

@@ -10,8 +10,8 @@
     "https://ipfs.io/ipfs/{cid}/"
   ],
   "app_hosts": {
-    "noet.nt": "home",
-    "search.nt": "home",
+    "noet.nt": "/",
+    "search.nt": "/",
     "id.nt": "/id",
     "relay.nt": "/relay"
   }
