@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "noet",
   "version": "1.0.0",
-  "description": "Открывает имена noet (.nt, .me) прямо в браузере. Контент из IPFS, без серверов.",
+  "description": "Свободный интернет в твоём браузере: сайты, которые нельзя заблокировать, удалить или отобрать.",
   "browser_specific_settings": { "gecko": { "id": "noet@noet-scz", "strict_min_version": "115.0" } },
   "permissions": ["webNavigation", "tabs", "storage"],
   "background": { "scripts": ["bg.js"] },
