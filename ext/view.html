@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>noet</title>
+<style>
+  :root{--bg:#0a0a0c;--bar:#15151c;--bd:#23232c;--fg:#ececf2;--mut:#8b8b98;--acc:#7c5cff;--acc2:#9d8bff}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+  body{display:flex;flex-direction:column}
+  #bar{display:flex;align-items:center;gap:.6rem;padding:.45rem .8rem;background:var(--bar);border-bottom:1px solid var(--bd);flex-shrink:0}
+  #bar img{width:20px;height:20px}
+  #name{font-weight:600;letter-spacing:.2px}
+  #name .tld{color:var(--mut);font-weight:400}
+  #bar a{margin-left:auto;color:var(--acc2);text-decoration:none;font-size:.85rem}
+  #stage{flex:1;position:relative;min-height:0}
+  iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+  #msg{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;color:var(--mut);text-align:center;padding:2rem}
+  #msg h2{color:var(--fg);margin:0;font-size:1.3rem}
+  .spin{width:26px;height:26px;border:3px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div id="bar">
+    <img src="/logo.svg" alt="">
+    <span id="name"></span>
+    <a id="home" href="#">noet.nt</a>
+  </div>
+  <div id="stage">
+    <iframe id="frame" sandbox="allow-scripts allow-forms allow-popups allow-same-origin" referrerpolicy="no-referrer" hidden></iframe>
+    <div id="msg"><div class="spin"></div><div id="msgtext">резолвлю имя…</div></div>
+  </div>
+<script src="view.js"></script>
+</body>
+</html>

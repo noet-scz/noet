@@ -1,10 +1,11 @@
+dist/_ext.zip
 extension/key.pem
-.session-secret
-members.json
+ext/_test.html
 invites.json
-relay-events.json
+members.json
+names.cache.json
+node_modules/
 registry.json
 registry.seed.json
-dist/_ext.zip
-node_modules/
-names.cache.json
+relay-events.json
+.session-secret

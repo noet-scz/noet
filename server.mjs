@@ -79,10 +79,13 @@ async function ipfsAdd(filename, content) {
   if (!dir) throw new Error('ipfs add: нет CID директории');
   return dir.Hash;
 }
-// seed-пиннинг (реестр): подтянуть CID из сети и закрепить, чтобы контент жил, когда автор офлайн
+// seed-пиннинг (реестр): подтянуть CID из сети, закрепить и анонсировать в DHT,
+// чтобы публичные шлюзы у клиентов находили контент даже когда автор офлайн
 async function ipfsPin(cid) {
-  try { await fetch(`${IPFS_API}/api/v0/pin/add?arg=${encodeURIComponent(cid)}`, { method: 'POST', signal: AbortSignal.timeout(20000) }); }
-  catch { /* best-effort */ }
+  try {
+    await fetch(`${IPFS_API}/api/v0/pin/add?arg=${encodeURIComponent(cid)}`, { method: 'POST', signal: AbortSignal.timeout(30000) });
+    fetch(`${IPFS_API}/api/v0/routing/provide?arg=${encodeURIComponent(cid)}`, { method: 'POST', signal: AbortSignal.timeout(60000) }).catch(() => {});
+  } catch { /* best-effort */ }
 }
 
 function renderPage({ title, body, name, handle, template }) {
