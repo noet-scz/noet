@@ -6,6 +6,7 @@
   "permissions": ["webNavigation", "tabs", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "bg.js" },
+  "sandbox": { "pages": ["render.html"] },
   "content_scripts": [
     { "matches": ["<all_urls>"], "js": ["nostr-provider.js", "noet-sdk.js"], "world": "MAIN", "run_at": "document_start", "all_frames": true },
     { "matches": ["<all_urls>"], "js": ["bridge.js"], "world": "ISOLATED", "run_at": "document_start", "all_frames": true }
@@ -17,6 +18,6 @@
     "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
   },
   "web_accessible_resources": [
-    { "resources": ["view.html", "view.js", "config.default.json", "app/*", "vendor/*"], "matches": ["<all_urls>"] }
+    { "resources": ["view.html", "view.js", "render.html", "config.default.json", "app/*", "vendor/*"], "matches": ["<all_urls>"] }
   ]
 }

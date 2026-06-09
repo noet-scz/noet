@@ -238,7 +238,7 @@ function renderApp() {
       </div></div>` : ''}
       ${me.handle ? `<div class="card">
         <div class="mut" style="font-size:.8rem;margin-bottom:.5rem">${t('my_sites')}</div>
-        ${(state.myNames || []).filter((n) => n !== me.handle + '.me').map((n) => `<a href="http://${esc(n)}/" target="_blank" style="display:block;color:var(--acc2);margin-bottom:.35rem">${esc(n)}</a>`).join('') || `<div class="mut" style="font-size:.88rem">${t('no_sites')}</div>`}
+        ${(state.myNames || []).map((n) => `<a href="http://${esc(n)}/" target="_blank" style="display:block;color:var(--acc2);margin-bottom:.35rem">${esc(n)}</a>`).join('') || `<div class="mut" style="font-size:.88rem">${t('no_sites')}</div>`}
         ${(state.myNames || []).includes('dash.' + me.handle + '.me') ? '' : `<button class="btn ghost" id="mkdash" style="margin-top:.5rem">${t('make_dash')}</button>`}
         <div class="msg" id="dashmsg"></div>
       </div>` : ''}
@@ -405,10 +405,9 @@ function renderApp() {
         const html = await (await fetch('https://noet-scz.github.io/noet/sites/dashboard/index.html', { cache: 'no-cache' })).text();
         const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
         const files = [{ path: 'index.html', data: b64(html) }, { path: 'noet.env.json', data: b64(JSON.stringify({ APP: (state.me || {}).handle })) }];
-        const r = await OPS.publishDir({ sub: 'dash', files });
-        const el = id('dashmsg'); el.className = 'msg ok'; el.textContent = t('dash_made') + ' ';
-        const a = document.createElement('a'); a.href = 'http://' + r.name + '/'; a.textContent = r.name; a.target = '_blank'; el.appendChild(a);
-        await refresh();
+        await OPS.publishDir({ sub: 'dash', files });
+        await refresh(); render();
+        const el = id('dashmsg'); if (el) { el.className = 'msg ok'; el.textContent = t('dash_made'); }
       } catch (e) { setMsg('dashmsg', errText(e), 'err'); }
     });
     on('edback', () => { state.view = 'profile'; render(); });

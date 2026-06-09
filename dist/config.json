@@ -5,9 +5,9 @@
     "http://144.31.25.136:8090/api/names"
   ],
   "gateways": [
-    "https://{cid}.ipfs.w3s.link/",
-    "https://{cid}.ipfs.4everland.io/",
-    "https://{cid}.ipfs.dweb.link/"
+    "https://{cid}.ipfs.dweb.link/",
+    "https://ipfs.io/ipfs/{cid}/",
+    "https://{cid}.ipfs.4everland.io/"
   ],
   "app_hosts": {
     "noet.nt": "/",

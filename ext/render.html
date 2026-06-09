@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#fff}</style></head>
+<body><script>
+// noet — sandbox-страница рендера. CSP здесь разрешает инлайн/внешний JS (manifest
+// sandbox), поэтому страницы-приложения работают. Контент приходит байтами от view.js;
+// window.nostr / window.noet проксируются в родителя (view.js) через postMessage.
+(function () {
+  function inject(html, base) {
+    var baseTag = base ? '<base href="' + base + '">' : '';
+    var shim = '<scr' + 'ipt>(function(){var seq=0,pend={};' +
+      'window.addEventListener("message",function(e){var d=e.data;if(!d||d.__noetRes==null)return;var f=pend[d.id];if(!f)return;delete pend[d.id];if(d.error)f[1](new Error(d.error));else f[0](d.result);});' +
+      'function call(api,method,params){return new Promise(function(res,rej){var id=++seq;pend[id]=[res,rej];parent.postMessage({__noetCall:1,id:id,api:api,method:method,params:params},"*");});}' +
+      'window.nostr={getPublicKey:function(){return call("nostr","getPublicKey")},signEvent:function(ev){return call("nostr","signEvent",ev)},getRelays:function(){return Promise.resolve({})}};' +
+      'window.noet={me:function(){return call("noet","me")},publish:function(ev){return call("noet","publish",ev)},query:function(f,o){return call("noet","query",[f,o||{}])},relays:[]};' +
+      '})();</scr' + 'ipt>';
+    var head = baseTag + shim;
+    var doc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, function (m) { return m + head; })
+      : (/<html[^>]*>/i.test(html) ? html.replace(/<html[^>]*>/i, function (m) { return m + '<head>' + head + '</head>'; }) : '<head>' + head + '</head>' + html);
+    document.open(); document.write(doc); document.close();
+  }
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (d && d.__noetRender === 'doc') inject(d.html || '', d.base || '');
+  });
+  parent.postMessage({ __noetRender: 'ready' }, '*');
+})();
+</script></body></html>
