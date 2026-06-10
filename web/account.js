@@ -16,8 +16,10 @@ const K_SK = 'noet_sk', K_TOK = 'noet_token', K_PROF = 'noet_profile';
 const nip07 = () => !!window.nostr;
 const getSk = () => LS.getItem(K_SK);
 
+// ЕДИНЫЙ ключ. Есть расширение (window.nostr) → ключ ТОЛЬКО из него; своего ключа в
+// localStorage не держим, иначе рассинхрон. Без расширения — запасной ключ на сайте.
 async function pubkey() {
-  if (nip07()) { try { return await window.nostr.getPublicKey(); } catch (e) { if (!getSk()) throw Object.assign(e, { code: e.code || 'no_key' }); } }
+  if (nip07()) return await window.nostr.getPublicKey();   // расширение — единственный источник
   const sk = getSk();
   if (!sk) throw Object.assign(new Error('no key'), { code: 'no_key' });
   return hex(schnorr.getPublicKey(fromHex(sk)));
@@ -25,7 +27,7 @@ async function pubkey() {
 const serialize = (ev) => JSON.stringify([0, ev.pubkey, ev.created_at, ev.kind, ev.tags, ev.content]);
 async function sign(ev) {
   ev.created_at = ev.created_at || Math.floor(Date.now() / 1000); ev.tags = ev.tags || []; ev.content = ev.content || '';
-  if (nip07()) { try { return await window.nostr.signEvent(ev); } catch (e) { if (!getSk()) throw e; } }
+  if (nip07()) return await window.nostr.signEvent(ev);     // подпись только расширением
   ev.pubkey = await pubkey(); ev.id = sha256hex(serialize(ev));
   ev.sig = hex(await schnorr.sign(fromHex(ev.id), fromHex(getSk())));
   return ev;
@@ -84,19 +86,21 @@ async function api(path, opts) {
 
 const OPS = {
   async whoami() {
-    let loggedIn = false, pk = null, handle = null, rep = null, access = [], isOwner = false;
+    // 1) текущий ключ (расширение или, без него, локальный)
+    let pk = null, extNoKey = false;
+    try { pk = await pubkey(); } catch { if (nip07()) extNoKey = true; }
+    // 2) сессия действительна, ТОЛЬКО если её ключ совпадает с текущим (иначе рассинхрон)
+    let loggedIn = false, handle = null, rep = null, access = [], isOwner = false;
     const t = LS.getItem(K_TOK);
-    if (t) {
+    if (t && pk) {
       try {
         const m = await api('/api/me', { headers: authH() });
-        loggedIn = true; pk = m.pubkey; handle = m.handle;
-        rep = m.rep; access = m.access || []; isOwner = !!m.isOwner;
+        if (m.pubkey === pk) { loggedIn = true; handle = m.handle; rep = m.rep; access = m.access || []; isOwner = !!m.isOwner; }
+        else LS.removeItem(K_TOK);   // токен от другого ключа — выкинуть, перелогинимся
       } catch { LS.removeItem(K_TOK); }
     }
-    let extNoKey = false;
-    if (!pk && (nip07() || getSk())) { try { pk = await pubkey(); } catch { if (nip07() && !getSk()) extNoKey = true; } }
     let profile = null; try { profile = JSON.parse(LS.getItem(K_PROF) || 'null'); } catch {}
-    return { loggedIn, pubkey: pk, handle, profile, nip07: nip07(), hasKey: !!(pk || getSk()), extNoKey, rep, access, isOwner };
+    return { loggedIn, pubkey: pk, handle, profile, nip07: nip07(), hasKey: !!pk, extNoKey, rep, access, isOwner };
   },
   async genKey() { const sk = hex(schnorr.utils.randomPrivateKey()); LS.setItem(K_SK, sk); return { pubkey: hex(schnorr.getPublicKey(fromHex(sk))), nsec: sk }; },
   async importKey({ nsec }) {
@@ -230,12 +234,15 @@ function renderApp() {
       }
     }
     await refresh();
-    if (state.me && state.me.loggedIn) state.view = 'profile';
-    else if (state.me && state.me.extNoKey) state.view = 'ext_nokey';
-    else if (state.me && state.me.hasKey) {
+    const me = state.me || {};
+    if (me.loggedIn) state.view = 'profile';
+    else if (me.pubkey) {
+      // ключ есть, но не залогинены → тихий вход тем же ключом. Известный ключ → профиль;
+      // незнакомый → один раз выбрать хэндл (он же станет доменом, навсегда).
       try { await OPS.login({}); await refresh(); state.view = 'profile'; }
-      catch { state.view = 'register'; }
-    } else state.view = 'create';
+      catch (e) { state.view = 'register'; }
+    } else if (me.extNoKey || nip07()) state.view = 'ext_nokey';   // расширение есть, ключа нет
+    else state.view = 'create';                                    // расширения нет — запасной путь
     render();
   }
 
@@ -264,13 +271,11 @@ function renderApp() {
     } else if (state.view === 'register') {
       body = `<div class="card">
         <h1>${t('choose_handle')}</h1>
-        <div class="ok">✓ ${t('key_ready')}${state.justKey ? ` <a class="lnk" id="redl">${t('download_backup')}</a>` : ''}</div>
-        <p class="mut">${t('backup_warn')}</p>
+        <p class="mut">${t('handle_is_address')}${state.justKey ? ` <a class="lnk" id="redl">${t('download_backup')}</a>` : ''}</p>
         <label>${t('choose_handle')}</label><input id="rhandle" placeholder="${t('handle_ph')}" autofocus>
         <button class="btn big" id="register">${t('register_btn')}</button>
         <div class="msg err" id="msg"></div>
-        <div class="sep"></div>
-        <div class="or"><button class="lnk" id="goImport">${t('have_key')}</button></div>
+        ${nip07() ? '' : `<div class="sep"></div><div class="or"><button class="lnk" id="goImport">${t('have_key')}</button></div>`}
       </div>`;
     } else if (state.view === 'profile') {
       const p = me.profile || {}, dname = (p.name || me.handle);
@@ -284,15 +289,9 @@ function renderApp() {
       </div>
       ${pageUrl ? `<div class="card"><div class="row2">
         <div><div class="mut" style="font-size:.8rem;margin-bottom:.3rem">${t('your_page')}</div>
-        <a href="${esc(pageUrl)}" style="font-size:1.05rem;color:var(--acc2)">${esc(me.handle)}.me</a></div>
-        <button class="btn ghost" id="goedit" style="margin-top:0">${t('edit_page')}</button>
+        <a href="${esc(pageUrl)}" target="_blank" style="font-size:1.05rem;color:var(--acc2)">${esc(me.handle)}.me</a></div>
+        <button class="btn" id="goedit" style="margin-top:0">${t('edit_page')}</button>
       </div></div>` : ''}
-      ${me.handle ? `<div class="card">
-        <div class="mut" style="font-size:.8rem;margin-bottom:.5rem">${t('my_sites')}</div>
-        ${(state.myNames || []).map((n) => `<a href="http://${esc(n)}/" target="_blank" style="display:block;color:var(--acc2);margin-bottom:.35rem">${esc(n)}</a>`).join('') || `<div class="mut" style="font-size:.88rem">${t('no_sites')}</div>`}
-        ${(state.myNames || []).includes('dash.' + me.handle + '.me') ? '' : `<button class="btn ghost" id="mkdash" style="margin-top:.5rem">${t('make_dash')}</button>`}
-        <div class="msg" id="dashmsg"></div>
-      </div>` : ''}
       <div class="card">
         <div class="row2">
           ${me.hasKey && !me.nip07 ? `<button class="btn ghost" id="backup">${t('show_backup')}</button>` : ''}
@@ -320,54 +319,22 @@ function renderApp() {
             <div class="ed-pick-row">
               <button class="ed-pick-card" id="pick_text"><b>${t('ed_text')}</b><span>${t('ed_text_d')}</span></button>
               <button class="ed-pick-card" id="pick_html"><b>HTML</b><span>${t('ed_html_d')}</span></button>
-              <button class="ed-pick-card" id="pick_dir"><b>${t('ed_project')}</b><span>${t('ed_project_d')}</span></button>
             </div>
           </div></div>`;
         wire();
         return;
       }
 
-      // шаг 2: редактор выбранного типа
-      const isHtml = state.edMode === 'html', isDir = state.edMode === 'dir';
-      const fileN = (state.edFiles || []).length;
-      const outHint = presetById(state.edPreset).out;
-      const envRows = state.edEnvs.map((e, i) => `<div class="dp-env" data-i="${i}">
-        <input class="dp-envk" placeholder="KEY" value="${esc(e.k)}">
-        <input class="dp-envv" placeholder="${t('dp_value')}" value="${esc(e.v)}">
-        <button class="dp-envdel" data-i="${i}" title="${t('cancel')}">✕</button></div>`).join('');
-      const dirPanel = `<div class="ed-deploy"><div class="dp-card">
-        <h2>${t('dp_title')}</h2>
-        <div class="dp-field"><label>${t('dp_address')}</label>
-          <div class="dp-name"><input id="dp_sub" value="${esc(state.edSub)}" placeholder="${t('dp_sub_ph')}"><span>.${esc(handle)}.me</span></div>
-          <p class="dp-hint">${t('dp_address_hint').replace('{h}', handle)}</p>
-        </div>
-        <div class="dp-field"><label>${t('dp_framework')}</label>
-          <div class="dp-dd" id="dp_dd">
-            <button type="button" class="dp-dd-btn" id="dp_dd_btn">${esc(presetById(state.edPreset).name)}<span class="dp-dd-arr">▾</span></button>
-            <div class="dp-dd-list" id="dp_dd_list" hidden>${PRESETS.map((p) => `<div class="dp-dd-opt${p.id === state.edPreset ? ' on' : ''}" data-id="${p.id}">${esc(p.name)}</div>`).join('')}</div>
-          </div>
-        </div>
-        <details class="dp-sec"><summary>${t('dp_env')}</summary>
-          <div id="dp_envs">${envRows}</div>
-          <button class="lnk dp-addenv" id="dp_addenv">+ ${t('dp_add')}</button>
-          <p class="dp-hint">${t('dp_env_hint')}</p>
-        </details>
-        <div class="dp-field dp-folderfield"><label>${t('dp_folder')}</label>
-          <input type="file" id="ed_dir" webkitdirectory directory multiple hidden>
-          <button class="dp-folder${fileN ? ' has' : ''}" id="ed_pick">${fileN ? '✓ ' + fileN + ' ' + t('ed_files_n') : t('ed_pick_folder')}</button>
-          <p class="dp-hint">${t('dp_folder_hint')}${outHint && outHint !== '.' ? ' (' + t('dp_usually') + ' ' + esc(outHint) + ')' : ''}</p>
-        </div>
-      </div></div>`;
-
+      // шаг 2: редактор выбранного типа (Текст или HTML), всегда правит <хэндл>.me
+      const isHtml = state.edMode === 'html';
       root.innerHTML = `<div class="ed-page">
         <div class="ed-bar">
           <button class="lnk" id="edback">← ${t('back')}</button>
           <span class="ed-bar-url">${esc(handle)}.me</span>
           <button class="lnk ed-changetype" id="ed_changetype">${t('ed_change_type')}</button>
-          <button class="btn ed-pub-btn" id="edpub">${isDir ? t('dp_deploy') : t('publish_btn')}</button>
+          <button class="btn ed-pub-btn" id="edpub">${t('publish_btn')}</button>
         </div>
-        ${isDir ? dirPanel
-          : isHtml
+        ${isHtml
           ? `<textarea class="ed-area ed-code" id="ed_html" spellcheck="false" placeholder="&lt;!doctype html&gt;&#10;&lt;html&gt;...">${esc(state.edHtml)}</textarea>`
           : `<input class="ed-title-full" id="ed_title" placeholder="${t('page_title_ph')}" value="${esc(state.edTitle)}">
              <textarea class="ed-area" id="ed_body" placeholder="${t('page_body_ph')}">${esc(state.edBody)}</textarea>`
@@ -395,9 +362,8 @@ function renderApp() {
           const d = await r.json();
           // открыть сразу в том типе, в котором было опубликовано, с загруженным содержимым
           if (d.raw && d.raw.mode === 'html') { state.edMode = 'html'; state.edHtml = d.raw.body || ''; }
-          else if (d.raw && d.raw.mode === 'dir') { state.edMode = 'dir'; }
           else if (d.raw && !d.raw.placeholder && (d.raw.title != null || d.raw.body != null)) { state.edMode = 'text'; state.edTitle = d.raw.title || ''; state.edBody = d.raw.body || ''; }
-          // иначе (заглушка/пусто) — остаётся выбор типа
+          // иначе (заглушка/пусто/старый проект) — остаётся выбор типа
         }
       } catch {}
     }
@@ -452,63 +418,29 @@ function renderApp() {
       } catch (e) { setMsg('pmsg', errText(e), 'err'); }
     });
     on('goedit', () => enterEditor());
-    on('mkdash', async () => {
-      setMsg('dashmsg', '…', '');
-      try {
-        const html = await (await fetch('https://noet-scz.github.io/noet/sites/dashboard/index.html', { cache: 'no-cache' })).text();
-        const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
-        const files = [{ path: 'index.html', data: b64(html) }, { path: 'noet.env.json', data: b64(JSON.stringify({ APP: (state.me || {}).handle })) }];
-        const dr = await OPS.publishDir({ sub: 'dash', files });
-        broadcastRecord({ name: dr.name, cid: dr.cid, title: dr.title, mode: 'dir' }).catch(() => {});  // P2
-        broadcastClaim(dr.name, dr.cid).catch(() => {});  // P5
-        await refresh(); render();
-        const el = id('dashmsg'); if (el) { el.className = 'msg ok'; el.textContent = t('dash_made'); }
-      } catch (e) { setMsg('dashmsg', errText(e), 'err'); }
-    });
     on('edback', () => { state.view = 'profile'; render(); });
     // выбор типа
     on('pick_text', () => { state.edMode = 'text'; render(); });
     on('pick_html', () => { state.edMode = 'html'; render(); });
-    on('pick_dir', () => { state.edMode = 'dir'; render(); });
-    on('ed_changetype', () => { saveDir(); state.edMode = 'pick'; render(); });
-    // сохранить поля деплой-панели (поддомен/env), чтобы переживали ре-рендер
-    const saveDir = () => {
-      const n = id('dp_sub'); if (n) state.edSub = n.value.trim();
-      if (id('dp_envs')) state.edEnvs = [...document.querySelectorAll('.dp-env')].map((r) => ({ k: r.querySelector('.dp-envk').value.trim(), v: r.querySelector('.dp-envv').value }));
+    on('ed_changetype', () => { saveEd(); state.edMode = 'pick'; render(); });
+    // сохранить введённое, чтобы переживало смену типа/ре-рендер
+    const saveEd = () => {
+      if (id('ed_html')) state.edHtml = id('ed_html').value;
+      if (id('ed_title')) state.edTitle = id('ed_title').value;
+      if (id('ed_body')) state.edBody = id('ed_body').value;
     };
-    // стилизованный выпадающий список фреймворка
-    const ddBtn = id('dp_dd_btn'), ddList = id('dp_dd_list');
-    if (ddBtn && ddList) {
-      ddBtn.onclick = (e) => { e.stopPropagation(); ddList.hidden = !ddList.hidden; };
-      ddList.querySelectorAll('.dp-dd-opt').forEach((o) => o.onclick = () => { saveDir(); state.edPreset = o.dataset.id; render(); });
-      document.addEventListener('click', () => { const l = id('dp_dd_list'); if (l) l.hidden = true; }, { once: true });
-    }
-    on('dp_addenv', () => { saveDir(); state.edEnvs.push({ k: '', v: '' }); render(); });
-    document.querySelectorAll('.dp-envdel').forEach((b) => b.onclick = () => { saveDir(); state.edEnvs.splice(+b.dataset.i, 1); render(); });
-    on('ed_pick', () => { const i = id('ed_dir'); if (i) i.click(); });
-    const dirInput = id('ed_dir');
-    if (dirInput) dirInput.addEventListener('change', async () => {
-      saveDir(); setMsg('edmsg', '…', '');
-      try { state.edFiles = await readFolder([...dirInput.files]); } catch { state.edFiles = []; }
-      render();
-    });
     on('edpub', async () => {
       setMsg('edmsg', '…', '');
       try {
         let r;
-        if (state.edMode === 'dir') {
-          saveDir();
-          if (!(state.edFiles && state.edFiles.length)) { setMsg('edmsg', t('ed_no_files'), 'err'); return; }
-          let files = state.edFiles.slice();
-          const env = {}; for (const e of state.edEnvs) if (e.k) env[e.k] = e.v;
-          if (Object.keys(env).length) files = files.concat([{ path: 'noet.env.json', data: btoa(unescape(encodeURIComponent(JSON.stringify(env, null, 2)))) }]);
-          r = await OPS.publishDir({ sub: state.edSub, files });
-        } else if (state.edMode === 'html') {
+        if (state.edMode === 'html') {
           const html = (id('ed_html').value || '').trim();
+          if (!html) { setMsg('edmsg', t('err_empty'), 'err'); return; }
           r = await OPS.publish({ body: html, mode: 'html' }); state.edHtml = html;
         } else {
           const title = (id('ed_title').value || '').trim();
           const body = id('ed_body').value || '';
+          if (!title && !body.trim()) { setMsg('edmsg', t('err_empty'), 'err'); return; }
           r = await OPS.publish({ title, body }); state.edTitle = title; state.edBody = body;
         }
         broadcastRecord({ name: r.name, cid: r.cid, title: r.title, mode: state.edMode }).catch(() => {});  // P2: указатель на реле (фоном)

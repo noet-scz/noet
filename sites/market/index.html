@@ -40,7 +40,7 @@
 </style></head>
 <body><main>
   <div id="app"><div class="mut">загружаю…</div></div>
-  <div class="foot">маркет собран на примитивах · <a href="http://dev.nt/">noet для разработчиков</a></div>
+  <div class="foot"><a href="http://noet.nt/">noet</a></div>
 </main>
 <script>
 (function () {
@@ -69,7 +69,7 @@
       return '<div class="lot" data-id="' + esc(ev.id) + '">' + (d.img ? '<img class="ph" src="' + esc(d.img) + '" loading="lazy" onerror="this.style.display=\'none\'">' : '<div class="noph">🏷</div>') +
         '<div class="b"><div class="t">' + esc(d.title) + '</div>' + (d.price ? '<div class="pr">' + esc(d.price) + '</div>' : '') + '</div></div>';
     }).join('');
-    app.innerHTML = '<h1>Объявления</h1><p class="sub">Лоты подписаны ключом продавца и живут в сети. Оплата и эскроу подключаются отдельным кубиком, это не ядро.</p>' +
+    app.innerHTML = '<h1>Объявления</h1><p class="sub">Объявления живут в сети, их нельзя отобрать. О покупке договаривайтесь напрямую.</p>' +
       '<details class="box"><summary>+ Разместить лот</summary>' +
       '<input id="t" placeholder="название"><input id="p" placeholder="цена (например: 1500 ₽ или обмен)"><input id="im" placeholder="ссылка на фото (https://…)"><textarea id="d" placeholder="описание"></textarea>' +
       '<div class="row"><button id="add">Разместить</button><span class="msg" id="msg"></span></div></details>' +

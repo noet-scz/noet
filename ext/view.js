@@ -141,7 +141,7 @@ async function renderContent(cid, gateways) {
       if (txt && /<[a-z!/]/i.test(txt)) { html = txt; base = gw; break; }
     } catch { /* следующий шлюз */ }
   }
-  if (html == null) { showMsg('<h2>Контент недоступен</h2><div>Контент ещё расходится по сети IPFS, или шлюзы недоступны. Обнови через минуту.</div>'); return; }
+  if (html == null) { showMsg('<h2>Не удалось открыть</h2><div>Страница ещё загружается в сеть. Попробуй обновить через минуту.</div>'); return; }
   return renderDoc(html, base);
 }
 
@@ -187,31 +187,25 @@ async function main() {
 
   // контент по имени
   setName(host);
-  showMsg('<div class="spin"></div><div>резолвлю имя…</div>');
+  showMsg('<div class="spin"></div><div>Открываю…</div>');
   const names = await fetchNames(cfg);
   const rec = names[host];
   if (!rec || !rec.cid) {
     // имени нет в индексе-зеркале → ПОЛНОСТЬЮ бессерверный путь: заявки на публичных реле
     // (OTS-очерёдность) → запись страницы с реле (html прямо в событии или cid в IPFS)
-    showMsg('<div class="spin"></div><div>резолвлю без сервера…</div>');
+    showMsg('<div class="spin"></div><div>Открываю…</div>');
     const resolved = await resolveNameViaRelays(host);
     if (resolved && resolved.owner) {
       const r = await relayRecord(host, resolved.owner);
       if (r && r.html) { showMsg('<div class="spin"></div>'); renderDoc(r.html, ''); return; }
       const cid = (r && r.cid) || resolved.target;
-      if (cid) { showMsg('<div class="spin"></div><div>тяну из IPFS…</div>'); renderContent(cid, cfg.gateways || []); return; }
+      if (cid) { showMsg('<div class="spin"></div><div>Открываю…</div>'); renderContent(cid, cfg.gateways || []); return; }
     }
-    showMsg(`<h2>${host}</h2><div>Имя не зарегистрировано в noet.</div>`);
+    showMsg(`<h2>${host}</h2><div>Такой страницы пока нет.</div>`);
     return;
   }
-  showMsg('<div class="spin"></div><div>тяну из IPFS…</div>');
-  renderContent(rec.cid, cfg.gateways || []);   // мгновенно: CID из индекса имён (быстрый путь)
-  // фоном: вдруг на публичных реле есть более свежая запись (обновление автора или другой
-  // экземпляр) — html прямо в событии или новый cid. Нет регресса скорости: рендер уже идёт.
-  relayRecord(host, rec.owner).then((r) => {
-    if (r && r.html) renderDoc(r.html, '');
-    else if (r && r.cid && r.cid !== rec.cid) renderContent(r.cid, cfg.gateways || []);
-  }).catch(() => {});
+  showMsg('<div class="spin"></div><div>Открываю…</div>');
+  renderContent(rec.cid, cfg.gateways || []);   // индекс имён авторитетен; без фоновой подмены
 }
 
 main();

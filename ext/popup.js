@@ -26,12 +26,10 @@ async function render() {
     view.innerHTML = `
       <h2>Твоя личность</h2>
       <div class="pk">${npub(pk)}</div>
-      <button class="pri" id="mysite">Моя страница (без сервера)</button>
-      <a href="http://id.nt/" target="_blank"><button class="gho">Профиль и имя на узле</button></a>
+      <a href="http://id.nt/" target="_blank"><button class="pri">Моя страница и профиль</button></a>
       <button class="gho" id="backup">Скачать бэкап ключа</button>
       <div class="sep"></div>
       <button class="lnk danger" id="forget">Забыть ключ в этом браузере</button>`;
-    document.getElementById('mysite').onclick = () => { api.tabs.create({ url: api.runtime.getURL('site.html') }); window.close(); };
     document.getElementById('backup').onclick = () => backup(sk, pk);
     document.getElementById('forget').onclick = async () => {
       if (!confirm('Забыть ключ? Без бэкапа личность не вернуть.')) return;

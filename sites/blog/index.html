@@ -36,7 +36,7 @@
 </style></head>
 <body><main>
   <div id="app"><div class="mut ui">загружаю…</div></div>
-  <div class="foot">блог собран на примитивах · <a href="http://dev.nt/">noet для разработчиков</a></div>
+  <div class="foot"><a href="http://noet.nt/">noet</a></div>
 </main>
 <script>
 (function () {
@@ -74,8 +74,8 @@
         '<div class="meta">@' + esc(await who(a.pubkey)) + ' · ' + when(a.created_at) + '</div>' +
         '<p class="ex">' + esc((a.content || '').replace(/[#>*]/g, '').slice(0, 160)) + '…</p></div>';
     }
-    app.innerHTML = '<h1>Блог</h1><p class="lead ui">Статьи, подписанные ключом автора. Их не отобрать и не стереть из одной точки.</p>' +
-      '<div class="box"><input id="t" placeholder="заголовок статьи"><textarea id="b" placeholder="текст. Пустая строка — новый абзац, строка с # — подзаголовок."></textarea>' +
+    app.innerHTML = '<h1>Блог</h1><p class="lead ui">Статьи, которые нельзя отобрать или стереть.</p>' +
+      '<div class="box"><input id="t" placeholder="заголовок статьи"><textarea id="b" placeholder="текст. Пустая строка это новый абзац, строка с # это подзаголовок."></textarea>' +
       '<div class="row"><button id="pub">Опубликовать</button><span class="msg" id="msg" style="margin-left:.4rem"></span></div></div>' +
       (rows || '<div class="mut ui">Пока нет статей.</div>');
     $('#pub').onclick = async function () {

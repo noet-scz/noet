@@ -1,8 +1,8 @@
 {
   "registry": "http://144.31.25.136:8090",
   "name_sources": [
-    "https://noet-scz.github.io/noet/dist/names.json",
-    "http://144.31.25.136:8090/api/names"
+    "http://144.31.25.136:8090/api/names",
+    "https://noet-scz.github.io/noet/dist/names.json"
   ],
   "gateways": [
     "https://{cid}.ipfs.dweb.link/",
