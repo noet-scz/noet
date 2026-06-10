@@ -170,11 +170,15 @@ function render() {
     : '<span class=mut>Доступов пока никому не выдано. Все решения за владельцем, и это видно здесь.</span>';
 
   // форма выдачи: владелец или держатель права передачи (сервер всё равно проверит)
+  const others = ME ? (DATA.people || []).filter((m) => m.pubkey !== ME.pubkey) : [];
   const canGive = ME && (ME.isOwner || (ME.access || []).length);
   $('#dform').hidden = !canGive;
   if (canGive) {
-    $('#d_to').innerHTML = (DATA.people || []).filter((m) => m.pubkey !== ME.pubkey)
-      .map((m) => '<option value="' + esc(m.pubkey) + '">@' + esc(m.handle) + '</option>').join('');
+    if (others.length) {
+      $('#d_to').innerHTML = others.map((m) => '<option value="' + esc(m.pubkey) + '">@' + esc(m.handle) + '</option>').join('');
+    } else {
+      $('#dform').querySelector('.dlg').innerHTML = '<span class=mut style="font-size:.88rem">Пока некому: ты здесь один. Создай инвайт ниже и позови людей.</span>';
+    }
   }
   $('#invcard').hidden = !(ME && (ME.isOwner || (ME.access || []).includes('invite')));
 

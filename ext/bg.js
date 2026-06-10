@@ -30,7 +30,8 @@ api.webNavigation.onBeforeNavigate.addListener(async (d) => {
   if (d.frameId !== 0) return;
   let h; try { h = new URL(d.url).hostname.toLowerCase(); } catch { return; }
   if (!/\.(nt|me)$/.test(h)) return;          // быстрый отсев
-  const set = await knownHosts();
-  if (set.has(h)) { api.tabs.update(d.tabId, { url: VIEW + '?u=' + d.url }); return; }
-  loadHosts();   // незнакомое имя не угоняем; вдруг его только что завели — освежим список
+  let set = await knownHosts();
+  if (!set.has(h)) set = await loadHosts();   // вдруг имя только что завели — освежаем и проверяем СРАЗУ
+  if (set.has(h)) api.tabs.update(d.tabId, { url: VIEW + '?u=' + d.url });
+  // незнакомое имя не угоняем: реальные домены (t.me и т.п.) идут своей дорогой
 }, { url: [{ hostSuffix: '.nt' }, { hostSuffix: '.me' }] });
