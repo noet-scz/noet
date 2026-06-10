@@ -36,18 +36,21 @@ const authH = () => { const t = LS.getItem(K_TOK); return t ? { authorization: '
 // (адресуемое, d=имя). Тогда обновление и любой другой экземпляр видят страницу БЕЗ
 // нашего сервера: данные привязаны к ключу автора, а не к реестру. Дозапись, не замена.
 const PUB_RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
+async function broadcastEvent(ev) {
+  const msg = JSON.stringify(['EVENT', ev]);
+  await Promise.allSettled(PUB_RELAYS.map((u) => new Promise((res) => {
+    let ws; try { ws = new WebSocket(u); } catch { return res(); }
+    const t = setTimeout(() => { try { ws.close(); } catch {} res(); }, 4000);
+    ws.onopen = () => { try { ws.send(msg); } catch {} };
+    ws.onmessage = () => { clearTimeout(t); try { ws.close(); } catch {} res(); };
+    ws.onerror = () => { clearTimeout(t); res(); };
+  })));
+}
 async function broadcastRecord({ name, cid, title, mode }) {
   if (!name || !cid) return;
   try {
     const ev = await sign({ kind: 31002, tags: [['d', name], ['cid', cid]], content: JSON.stringify({ cid, title: title || name, mode: mode || 'page' }) });
-    const msg = JSON.stringify(['EVENT', ev]);
-    await Promise.allSettled(PUB_RELAYS.map((u) => new Promise((res) => {
-      let ws; try { ws = new WebSocket(u); } catch { return res(); }
-      const t = setTimeout(() => { try { ws.close(); } catch {} res(); }, 4000);
-      ws.onopen = () => { try { ws.send(msg); } catch {} };
-      ws.onmessage = () => { clearTimeout(t); try { ws.close(); } catch {} res(); };
-      ws.onerror = () => { clearTimeout(t); res(); };
-    })));
+    await broadcastEvent(ev);
   } catch { /* указатель в реестре уже есть; реле это переносимость, не критично */ }
 }
 async function api(path, opts) {
@@ -96,6 +99,7 @@ const OPS = {
   async publishProfile({ name, picture, about }) {
     const ev = await sign({ kind: 0, tags: [], content: JSON.stringify({ name: name || '', picture: picture || '', about: about || '' }) });
     LS.setItem(K_PROF, JSON.stringify({ name, picture, about }));
+    broadcastEvent(ev).catch(() => {});   // P2: профиль на публичные реле — личность переносима, видна на любом экземпляре
     return { event: ev };
   },
   async publish({ name, title, body, mode }) { return await api('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json', ...authH() }, body: JSON.stringify({ name, title, body, mode }) }); },
@@ -412,7 +416,9 @@ function renderApp() {
       const handle = id('rhandle').value.trim();
       setMsg('msg', '…', '');
       try {
-        await OPS.login({ handle }); await refresh(); state.justKey = null; state.view = 'profile'; render();
+        const reg = await OPS.login({ handle });
+        if (reg && reg.registered) OPS.publishProfile({ name: handle, picture: '', about: '' }).catch(() => {});  // P2: засеять профиль на реле → участник виден на любом экземпляре
+        await refresh(); state.justKey = null; state.view = 'profile'; render();
         await afterLogin();
       } catch (e) { setMsg('msg', errText(e), 'err'); }
     });

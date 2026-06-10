@@ -85,9 +85,16 @@
     <p><b>Чего не даёт:</b> власти над правилами. Репутация это ёмкость, а не голос. Расчёт открыт: нажми «откуда» у любого участника, формула в коде.</p>
   </div>
 
+  <h2>Где живут данные</h2>
+  <div class="card rules">
+    <p><b>Личность и связи</b> (профиль, поручительства, доступы) дублируются на нейтральные публичные реле, привязанные к твоему ключу. Другой экземпляр noet видит их без нашего сервера: реестр это индекс, а не хранилище.</p>
+    <p><b>Содержимое страниц</b> адресуется по отпечатку (CID) и живёт в IPFS. Указатель имя→содержимое тоже уходит на реле подписанным событием, поэтому обновление видно везде.</p>
+    <p><b>Кто хранит сейчас:</b> узел этого сообщества закрепляет (пиннит) содержимое участников и анонсирует его в сеть. Честно: для настоящей несокрушимости нужны независимые пиннеры у участников. Это следующий шаг (см. роадмап). Пока бесплатно значит хрупко: то, что держит один узел, держится, пока он жив.</p>
+  </div>
+
   <h2>Забрать всё с собой</h2>
   <div class=card>
-    <p style="margin:.2rem 0 .6rem;color:#c3c3cd;font-size:.92rem">Главная защита от любого захвата: полная копия всего (имена, участники, поручительства, доступы) доступна каждому. Несогласный уходит с копией и поднимает своё. Код открыт.</p>
+    <p style="margin:.2rem 0 .6rem;color:#c3c3cd;font-size:.92rem">Главная защита от любого захвата: полная копия всего (имена, участники, поручительства, доступы) доступна каждому. Несогласный уходит с копией и поднимает своё. Личность и страницы при этом не пересоздаются: они по ключу и CID уже на нейтральных реле и в IPFS. Код открыт.</p>
     <div class=acts><a href="/api/export" download="noet-export.json"><button class=b>Скачать копию</button></a>
     <a href="https://github.com/noet-scz/noet" target=_blank><button class=g>Код на GitHub</button></a></div>
   </div>
@@ -101,7 +108,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SCOPE_RU = { invite: 'инвайты', 'relay.mod': 'порядок в реле' };
 const scopeName = (s) => SCOPE_RU[s] || (s.startsWith('zone:') ? 'страница ' + s.slice(5) : s);
-let DATA = null, GOV = null, ME = null;
+let DATA = null, GOV = null, ME = null, PROFILES = {};
 
 async function load() {
   const [p, g, me] = await Promise.all([
@@ -112,6 +119,25 @@ async function load() {
   ]);
   DATA = p; GOV = g; ME = me;
   render();
+  // P2: имена/аватары участников берём с публичных реле (kind 0) — личность читается из
+  // событий, а не из реестра. Фоном, потом перерисовка. Доказывает «реестр это индекс».
+  relayProfiles((DATA.people || []).map((x) => x.pubkey)).then((pr) => { PROFILES = pr; render(); }).catch(() => {});
+}
+
+// профили (kind 0) участников с публичных реле, последний по времени
+function relayProfiles(pubkeys) {
+  return new Promise((resolve) => {
+    const out = {}; if (!pubkeys.length) return resolve(out);
+    let socks; try { socks = PUB_RELAYS.map((u) => new WebSocket(u)); } catch (e) { return resolve(out); }
+    let closed = 0;
+    const fin = () => { try { socks.forEach((w) => w.close()); } catch (e) {} resolve(out); };
+    const t = setTimeout(fin, 3500);
+    socks.forEach((ws) => {
+      ws.onopen = () => { try { ws.send(JSON.stringify(['REQ', 'pr', { kinds: [0], authors: pubkeys, limit: pubkeys.length * 3 }])); } catch (e) {} };
+      ws.onmessage = (m) => { try { const a = JSON.parse(m.data); if (a[0] === 'EVENT' && a[2] && a[2].kind === 0) { const ev = a[2]; if (!out[ev.pubkey] || ev.created_at > out[ev.pubkey]._ts) { try { const pr = JSON.parse(ev.content); pr._ts = ev.created_at; out[ev.pubkey] = pr; } catch (e) {} } } else if (a[0] === 'EOSE') { ws.close(); if (++closed >= socks.length) { clearTimeout(t); fin(); } } } catch (e) {} };
+      ws.onerror = () => { if (++closed >= socks.length) { clearTimeout(t); fin(); } };
+    });
+  });
 }
 
 function myVouchFor(pk) { return ME && (GOV.vouches || []).some((v) => v.from_pk === ME.pubkey && v.to_pk === pk); }
@@ -141,9 +167,11 @@ function render() {
     const mine = ME && ME.pubkey === m.pubkey;
     const vouched = myVouchFor(m.pubkey);
     const canAct = ME && !mine;
+    const prof = PROFILES[m.pubkey] || null;           // профиль с публичных реле (kind 0)
+    const dname = (prof && prof.name) || m.handle;
     return '<div class=card><div class=prow>' +
-      '<img class=pav src="' + window.Noet.avatar(m.pubkey, m.handle, null) + '">' +
-      '<div style="min-width:0"><div class=pname><a href="http://' + esc(m.handle) + '.me/">@' + esc(m.handle) + '</a>' +
+      '<img class=pav src="' + window.Noet.avatar(m.pubkey, dname, prof) + '">' +
+      '<div style="min-width:0"><div class=pname><a href="http://' + esc(m.handle) + '.me/">' + (prof && prof.name ? esc(prof.name) + ' <span class=mut style="font-weight:400;font-size:.85rem">@' + esc(m.handle) + '</span>' : '@' + esc(m.handle)) + '</a>' +
       (m.isOwner ? '<span class=own>владелец</span>' : '') + '</div>' +
       '<div class=psub>в noet с ' + new Date(m.since).toLocaleDateString('ru') + '</div>' +
       ((m.access || []).length ? '<div class=chips>' + m.access.map((s) => '<span class="chip acc">' + esc(scopeName(s)) + '</span>').join('') + '</div>' : '') +
