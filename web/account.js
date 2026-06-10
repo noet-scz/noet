@@ -40,13 +40,19 @@ async function api(path, opts) {
 
 const OPS = {
   async whoami() {
-    let loggedIn = false, pk = null, handle = null;
+    let loggedIn = false, pk = null, handle = null, rep = null, access = [], isOwner = false;
     const t = LS.getItem(K_TOK);
-    if (t) { try { const m = await api('/api/me', { headers: authH() }); loggedIn = true; pk = m.pubkey; handle = m.handle; } catch { LS.removeItem(K_TOK); } }
+    if (t) {
+      try {
+        const m = await api('/api/me', { headers: authH() });
+        loggedIn = true; pk = m.pubkey; handle = m.handle;
+        rep = m.rep; access = m.access || []; isOwner = !!m.isOwner;
+      } catch { LS.removeItem(K_TOK); }
+    }
     let extNoKey = false;
     if (!pk && (nip07() || getSk())) { try { pk = await pubkey(); } catch { if (nip07() && !getSk()) extNoKey = true; } }
     let profile = null; try { profile = JSON.parse(LS.getItem(K_PROF) || 'null'); } catch {}
-    return { loggedIn, pubkey: pk, handle, profile, nip07: nip07(), hasKey: !!(pk || getSk()), extNoKey };
+    return { loggedIn, pubkey: pk, handle, profile, nip07: nip07(), hasKey: !!(pk || getSk()), extNoKey, rep, access, isOwner };
   },
   async genKey() { const sk = hex(schnorr.utils.randomPrivateKey()); LS.setItem(K_SK, sk); return { pubkey: hex(schnorr.getPublicKey(fromHex(sk))), nsec: sk }; },
   async importKey({ nsec }) {
@@ -225,7 +231,7 @@ function renderApp() {
       const p = me.profile || {}, dname = (p.name || me.handle);
       const pageUrl = me.handle ? `http://${me.handle}.me/` : null;
       body = `<div class="card profile">
-        <div class="phd"><img class="bigav" src="${avatar(me.pubkey, dname, p)}"><div><div class="dn">${esc(dname)}</div><div class="mut">@${esc(me.handle)}</div></div></div>
+        <div class="phd"><img class="bigav" src="${avatar(me.pubkey, dname, p)}"><div><div class="dn">${esc(dname)}</div><div class="mut">@${esc(me.handle)}</div>${me.rep != null ? `<div class="mut" style="font-size:.8rem;margin-top:.15rem">${t('rep_label')}: <b style="color:var(--acc2)">${esc(me.rep)}</b>${me.isOwner ? ' · ' + t('owner_label') : ''}${(me.access || []).length ? ' · ' + t('access_label') + ': ' + esc(me.access.join(', ')) : ''} · <a href="/people" style="color:var(--acc2)">${t('people_nav')}</a></div>` : ''}</div></div>
         <label>${t('display_name')}</label><input id="p_name" value="${esc(p.name)}" placeholder="${t('dname_ph')}">
         <label>${t('avatar_lbl')}</label><input id="p_pic" value="${esc(p.picture)}" placeholder="${t('avatar_ph')}">
         <label>${t('about_lbl')}</label><textarea id="p_about" placeholder="${t('about_ph')}">${esc(p.about)}</textarea>

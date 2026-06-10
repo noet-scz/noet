@@ -3,7 +3,8 @@
   const DICT = {
     ru: {
       guest: 'Гость', login: 'Войти', logout: 'Выйти', account: 'Аккаунт',
-      search_nav: 'Поиск', relay_nav: 'Реле', back: 'Назад',
+      search_nav: 'Поиск', relay_nav: 'Реле', people_nav: 'Люди', back: 'Назад',
+      rep_label: 'Репутация', owner_label: 'владелец этого noet', access_label: 'доступ',
       // search
       search_ph: 'искать в noet', searching: 'ищу…', nothing: 'ничего не найдено',
       // relay
@@ -48,10 +49,13 @@
       err_no_key: 'В этом браузере нет ключа.',
       err_network: 'Нет связи, попробуй ещё раз.', err_generic: 'Что-то пошло не так, попробуй ещё раз.',
       err_empty: 'Страница пустая.',
+      err_too_big: 'Проект больше твоей квоты. Квота растёт с репутацией (страница Люди).',
+      err_quota_subs: 'Достигнут предел поддоменов. Лимит растёт с репутацией (страница Люди).',
     },
     en: {
       guest: 'Guest', login: 'Sign in', logout: 'Sign out', account: 'Account',
-      search_nav: 'Search', relay_nav: 'Relay', back: 'Back',
+      search_nav: 'Search', relay_nav: 'Relay', people_nav: 'People', back: 'Back',
+      rep_label: 'Reputation', owner_label: 'owner of this noet', access_label: 'access',
       search_ph: 'search noet', searching: 'searching…', nothing: 'nothing found',
       relay_title: 'Relay', compose_ph: 'write to the relay…', send: 'Send',
       reply: 'Reply', reply_to: 'replying to', cancel: 'Cancel',
@@ -92,6 +96,8 @@
       err_no_key: 'No key in this browser.',
       err_network: 'Network error, try again.', err_generic: 'Something went wrong, try again.',
       err_empty: 'Page is empty.',
+      err_too_big: 'Project exceeds your quota. Quota grows with reputation (People page).',
+      err_quota_subs: 'Subdomain limit reached. The limit grows with reputation (People page).',
     },
   };
   let lang = localStorage.getItem('noet_lang');

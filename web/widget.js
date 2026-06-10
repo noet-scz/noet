@@ -149,7 +149,7 @@
   }
   function renderMenu() {
     const m = state.me || {};
-    let html = `<a href="/">⌕ ${T('search_nav')}</a><a href="/relay">◇ ${T('relay_nav')}</a><a href="/id">○ ${T('account')}</a><div class=sep></div>`;
+    let html = `<a href="/">⌕ ${T('search_nav')}</a><a href="/relay">◇ ${T('relay_nav')}</a><a href="/people">⚯ ${T('people_nav')}</a><a href="/id">○ ${T('account')}</a><div class=sep></div>`;
     if (m.loggedIn) {
       html += `<button id=logout>⏻ ${T('logout')}</button>`;
     } else {

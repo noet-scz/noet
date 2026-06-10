@@ -31,6 +31,7 @@
   </form>
   <div class=quick>
     <a id=q_relay href="http://relay.nt/"></a>
+    <a id=q_people href="http://people.nt/"></a>
     <a href="http://manifest.nt/">Манифест</a>
   </div>
   <div id=res></div>
@@ -41,7 +42,7 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const NAME=/^[a-z0-9-]{1,32}\.(noet\.nt|blog)$/i;
-function applyLang(){ $('#q').placeholder=t('search_ph'); $('#q_relay').textContent=t('relay_nav'); }
+function applyLang(){ $('#q').placeholder=t('search_ph'); $('#q_relay').textContent=t('relay_nav'); $('#q_people').textContent=t('people_nav'); }
 $('#f').addEventListener('submit',async e=>{
   e.preventDefault();
   const q=$('#q').value.trim(); if(!q){$('#res').innerHTML='';return;}

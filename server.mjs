@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { makeRelay } from './ws.mjs';
+import { makeGov } from './gov.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const WEB = join(__dir, 'web');
@@ -51,9 +52,25 @@ function meNameFor(pk, sub) {
 const isBlog = (h) => h.endsWith('.' + BLOG_TLD);
 const isZone = (h) => h.endsWith('.' + ZONE_TLD);
 
-// auth нужен только реестру; демон проксирует вход на реестр и сам ключей не держит
-let auth = null;
-if (!DAEMON) auth = await import('./auth.mjs');
+// лимит поддоменов из репутации (новые имена; уже занятые продолжают работать)
+function subQuotaError(pk, name) {
+  if (reg.names[name] || name.split('.').length < 3) return null;   // не новый поддомен
+  const cap = gov.capacity(pk, reg.names);
+  if (cap.maxSubs === Infinity) return null;
+  const subs = Object.entries(reg.names).filter(([n, r]) => r.owner === pk && n.endsWith('.' + BLOG_TLD) && n.split('.').length > 2).length;
+  if (subs >= cap.maxSubs) return { error: `у тебя предел поддоменов: ${cap.maxSubs}. Лимит растёт с репутацией, смотри страницу Люди.`, code: 'quota_subs' };
+  return null;
+}
+
+// auth/gov нужны только реестру; демон проксирует вход на реестр и сам ключей не держит
+let auth = null, gov = null;
+if (!DAEMON) {
+  auth = await import('./auth.mjs');
+  gov = makeGov({
+    verify: auth.verifyNostr, members: auth.allMembers, handleOf: auth.handleOf,
+    file: process.env.GOV_FILE || join(__dir, 'gov.json'),
+  });
+}
 
 // ---- имена ----
 let reg = existsSync(REG_FILE) ? JSON.parse(readFileSync(REG_FILE, 'utf8'))
@@ -326,7 +343,8 @@ const STATIC = {
 };
 
 // в демоне эти запросы уходят на реестр (личность/сессии/запись имени)
-const PROXY_PATHS = new Set(['/api/me', '/api/members', '/api/auth/challenge', '/api/auth/login', '/api/invite', '/api/claim']);
+const PROXY_PATHS = new Set(['/api/me', '/api/members', '/api/auth/challenge', '/api/auth/login', '/api/invite', '/api/claim',
+  '/api/people', '/api/gov', '/api/vouch', '/api/delegate', '/api/revoke', '/api/export', '/api/publish-zone']);
 
 // ---- сервер ----
 const server = http.createServer(async (req, res) => {
@@ -414,11 +432,74 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && path === '/api/me') {
       const m = auth.me(bearer(req));
-      return m ? sendJson(res, 200, m) : sendJson(res, 401, { error: 'не авторизован' });
+      if (!m) return sendJson(res, 401, { error: 'не авторизован' });
+      const cap = gov.capacity(m.pubkey, reg.names);
+      const rep = gov.isOwner(m.pubkey) ? (gov.reputation(reg.names)[m.pubkey] || {}).score ?? 0 : cap.rep;
+      return sendJson(res, 200, {
+        ...m, rep, isOwner: gov.isOwner(m.pubkey), access: gov.scopesOf(m.pubkey),
+        capacity: { quotaMB: cap.quotaMB === Infinity ? null : cap.quotaMB, maxSubs: cap.maxSubs === Infinity ? null : cap.maxSubs, canVouch: cap.canVouch },
+      });
     }
+    // инвайт: по admin-token (владелец машины) или по подписанному запросу держателя
+    // доступа 'invite' (одноразовое событие kind 8020)
     if (req.method === 'POST' && path === '/api/invite') {
-      if (!ADMIN_TOKEN || req.headers['x-admin-token'] !== ADMIN_TOKEN) return sendJson(res, 403, { error: 'нужен admin-token' });
-      return sendJson(res, 201, { invite: auth.createInvite('founder') });
+      if (ADMIN_TOKEN && req.headers['x-admin-token'] === ADMIN_TOKEN) return sendJson(res, 201, { invite: auth.createInvite('founder') });
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { d = {}; }
+      if (d.event) {
+        const r = await gov.useInviteEvent(d.event);
+        if (r.error) return sendJson(res, 403, { error: r.error, code: 'generic' });
+        return sendJson(res, 201, { invite: auth.createInvite(r.by) });
+      }
+      return sendJson(res, 403, { error: 'нужен admin-token или подписанный запрос' });
+    }
+    // ---- люди / доступы / репутация / форк ----
+    if (req.method === 'GET' && path === '/api/people') {
+      const repAll = gov.reputation(reg.names);
+      const mem = auth.allMembers();
+      const sites = {};
+      for (const [n, r] of Object.entries(reg.names)) if (r.owner) (sites[r.owner] ||= []).push(n);
+      const people = Object.entries(mem).map(([pk, m]) => ({
+        pubkey: pk, handle: m.handle, since: m.ts,
+        rep: repAll[pk] || null, sites: (sites[pk] || []).sort(),
+        access: gov.scopesOf(pk), isOwner: gov.isOwner(pk),
+      })).sort((a, b) => ((b.rep || {}).score || 0) - ((a.rep || {}).score || 0));
+      return sendJson(res, 200, { owner: gov.publicState().owner, people });
+    }
+    if (req.method === 'GET' && path === '/api/gov') return sendJson(res, 200, gov.publicState());
+    if (req.method === 'POST' && (path === '/api/vouch' || path === '/api/delegate' || path === '/api/revoke')) {
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
+      const r = path === '/api/vouch' ? await gov.addVouch(d.event, reg.names)
+        : path === '/api/delegate' ? await gov.addDelegation(d.event, reg.names)
+        : await gov.addRevocation(d.event);
+      return r.error ? sendJson(res, 400, { error: r.error, code: 'generic' }) : sendJson(res, 201, { ok: true });
+    }
+    // право форка: полная копия состояния, достаточная чтобы поднять свой экземпляр
+    if (req.method === 'GET' && path === '/api/export') {
+      return sendJson(res, 200, {
+        exported_at: Date.now(),
+        note: 'Полная копия noet: имена, участники, поручительства, доступы. Код: https://github.com/noet-scz/noet',
+        owner: gov.publicState().owner,
+        names: reg.names,
+        members: auth.allMembers(),
+        gov: gov.raw(),
+      });
+    }
+    // обновление зонального имени (*.nt) держателем доступа zone:<имя> или владельцем
+    if (req.method === 'POST' && path === '/api/publish-zone') {
+      const pk = auth.sessionPubkey(bearer(req));
+      if (!pk) return sendJson(res, 401, { error: 'нужен вход', code: 'need_login' });
+      let d; try { d = JSON.parse((await readBody(req)) || '{}'); } catch { return sendJson(res, 400, { error: 'bad json', code: 'generic' }); }
+      const name = String(d.name || '').toLowerCase().trim();
+      if (!new RegExp(`^[a-z0-9-]{1,32}\\.${ZONE_TLD}$`).test(name)) return sendJson(res, 400, { error: `имя вида слово.${ZONE_TLD}`, code: 'name_format' });
+      if (!(gov.isOwner(pk) || gov.hasScope(pk, 'zone:' + name))) return sendJson(res, 403, { error: 'нет доступа к этому имени', code: 'generic' });
+      const rawHtml = String(d.body || '').slice(0, 500000);
+      if (!rawHtml.trim()) return sendJson(res, 400, { error: 'пустая страница', code: 'empty' });
+      let cid; try { cid = await ipfsAdd('index.html', Buffer.from(rawHtml, 'utf8')); } catch (e) { return sendJson(res, 502, { error: 'ipfs: ' + e.message, code: 'generic' }); }
+      const tm = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      const prev = reg.names[name] || {};
+      reg.names[name] = { cid, owner: prev.owner || pk, owner_handle: prev.owner_handle || auth.handleOf(pk), ts: Date.now(), title: (tm ? tm[1].trim() : '') || name, raw: { mode: 'html', body: rawHtml, updated_by: auth.handleOf(pk) } };
+      saveReg(); ipfsPin(cid); pushNamesToGitHub(); index.delete(name); crawl();
+      return sendJson(res, 201, { name, cid });
     }
     if (req.method === 'POST' && path === '/api/claim') {
       const pk = auth.sessionPubkey(bearer(req));
@@ -444,6 +525,8 @@ const server = http.createServer(async (req, res) => {
       const name = nm.name;
       const cur = reg.names[name];
       if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
+      const subLimit = subQuotaError(pk, name);
+      if (subLimit) return sendJson(res, 403, subLimit);
       let cid, recTitle, rawData;
       if (String(d.mode || '') === 'html') {
         const rawHtml = String(d.body || '').slice(0, 500000);
@@ -473,15 +556,20 @@ const server = http.createServer(async (req, res) => {
       const name = nm.name;
       const cur = reg.names[name];
       if (cur && cur.owner && cur.owner !== pk) return sendJson(res, 409, { error: 'имя занято другим участником', code: 'name_taken' });
+      const subLimit = subQuotaError(pk, name);
+      if (subLimit) return sendJson(res, 403, subLimit);
       const incoming = Array.isArray(d.files) ? d.files : [];
       if (!incoming.length) return sendJson(res, 400, { error: 'нет файлов', code: 'empty' });
+      // квота размера растёт с репутацией (ёмкость, концепция §5.1); владелец без лимита
+      const cap = gov.capacity(pk, reg.names);
+      const limitMB = cap.quotaMB === Infinity ? 1024 : cap.quotaMB;
       let total = 0; const files = [];
       for (const f of incoming) {
         let p = String(f.path || '').replace(/\\/g, '/').replace(/^\/+/, '');
         if (!p || p.split('/').some((s) => s === '..')) continue;
         const buf = Buffer.from(String(f.data || ''), 'base64');
         total += buf.length;
-        if (total > 15 * 1024 * 1024) return sendJson(res, 413, { error: 'проект больше 15 МБ', code: 'too_big' });
+        if (total > limitMB * 1024 * 1024) return sendJson(res, 413, { error: `проект больше твоей квоты (${limitMB} МБ). Квота растёт с репутацией, смотри страницу Люди.`, code: 'too_big' });
         files.push({ path: p, content: buf });
       }
       if (!files.some((f) => f.path === 'index.html')) return sendJson(res, 400, { error: 'нужен index.html в корне проекта', code: 'no_index' });
@@ -507,6 +595,8 @@ const server = http.createServer(async (req, res) => {
   if (isZone(host)) {
     if (host === 'id.nt') return sendFile(res, join(WEB, 'account.html'));
     if (host === 'relay.nt') return sendFile(res, join(WEB, 'relay.html'));
+    if (host === 'people.nt') return sendFile(res, join(WEB, 'people.html'));
+    if (host === 'dev.nt') return sendFile(res, join(WEB, 'dev.html'));
     if (host === 'noet.nt' || host === 'search.nt') return sendFile(res, join(WEB, 'search.html'));
     const rec = reg.names[host];
     if (!rec) return sendHtml(res, 404, notFoundPage(host));
@@ -517,6 +607,8 @@ const server = http.createServer(async (req, res) => {
   // ----- прямой доступ по IP (отладка) -----
   if (req.method === 'GET' && (path === '/' || path === '/index.html')) return sendFile(res, join(WEB, 'search.html'));
   if (req.method === 'GET' && path === '/relay') return sendFile(res, join(WEB, 'relay.html'));
+  if (req.method === 'GET' && (path === '/people' || path === '/people/')) return sendFile(res, join(WEB, 'people.html'));
+  if (req.method === 'GET' && (path === '/dev' || path === '/dev/')) return sendFile(res, join(WEB, 'dev.html'));
   if (req.method === 'GET' && (path === '/id' || path === '/id/' || path === '/account')) return sendFile(res, join(WEB, 'account.html'));
   if (req.method === 'GET' && path.startsWith('/r/')) {
     const name = path.slice('/r/'.length).toLowerCase();
@@ -552,7 +644,10 @@ if (DAEMON) {
     clientSocket.on('error', () => { try { upstream.destroy(); } catch {} });
   });
 } else {
-  const relay = makeRelay({ verify: auth.verifyNostr, file: join(__dir, 'relay-events.json') });
+  const relay = makeRelay({
+    verify: auth.verifyNostr, file: join(__dir, 'relay-events.json'),
+    canDelete: (pk) => gov.isOwner(pk) || gov.hasScope(pk, 'relay.mod'),
+  });
   relay.attach(server);
 }
 
