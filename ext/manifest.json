@@ -78,7 +78,8 @@
         "people.js",
         "dev.html",
         "feed.html",
-        "feed.js"
+        "feed.js",
+        "home.html"
       ],
       "matches": [
         "<all_urls>"

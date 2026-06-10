@@ -195,7 +195,7 @@ async function main() {
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
   // ВСЕ служебные страницы живут ВНУТРИ расширения (serverless: ключ + сеть, без VPS)
-  const APP_PAGES = { 'noet.nt': 'app.html', 'search.nt': 'app.html', 'id.nt': 'app.html', 'people.nt': 'people.html', 'dev.nt': 'dev.html', 'relay.nt': 'feed.html' };
+  const APP_PAGES = { 'noet.nt': 'home.html', 'search.nt': 'home.html', 'id.nt': 'app.html', 'people.nt': 'people.html', 'dev.nt': 'dev.html', 'relay.nt': 'feed.html' };
   if (APP_PAGES[host]) { location.href = api.runtime.getURL(APP_PAGES[host]); return; }
 
   // контент по имени

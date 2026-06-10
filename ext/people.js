@@ -11,6 +11,8 @@ const enc = (s) => new TextEncoder().encode(s);
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const tag = (ev, k) => (((ev.tags || []).find((t) => t[0] === k) || [])[1]) || '';
+const handleFromName = (n) => String(n).replace(/\.(me|nt)$/i, '');
+const isTestName = (n) => /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n);   // мусор от тестов
 
 const getSk = async () => (await api.storage.local.get('noet_sk')).noet_sk || null;
 function query(filters) {
@@ -64,7 +66,7 @@ async function load() {
   MY = await getSk(); const myPk = MY ? hex(schnorr.getPublicKey(h2u(MY))) : null;
   // участники = заявившие имя; + профили + поручительства одним заходом
   const evs = await query([{ kinds: [31111], '#t': ['noet-name'], limit: 500 }, { kinds: [0], limit: 500 }, { kinds: [8001, 8002], limit: 1000 }]);
-  const claims = evs.filter((e) => e.kind === 31111 && /\.(me|nt)$/.test(tag(e, 'd')));
+  const claims = evs.filter((e) => e.kind === 31111 && /\.(me|nt)$/.test(tag(e, 'd')) && !isTestName(tag(e, 'd')));
   const members = {}; // pk → {name, since}
   claims.forEach((c) => { const pk = c.pubkey, name = tag(c, 'd'); if (!members[pk] || c.created_at < members[pk].since) members[pk] = { name, since: c.created_at }; });
   const profs = {}; evs.filter((e) => e.kind === 0).forEach((e) => { if (!profs[e.pubkey] || e.created_at > profs[e.pubkey]._ts) { try { const p = JSON.parse(e.content); p._ts = e.created_at; profs[e.pubkey] = p; } catch {} } });
@@ -82,15 +84,16 @@ async function load() {
 
 function render(myPk) {
   $('#me').innerHTML = myPk
-    ? `<div class="card"><div class="psub">ты: ${esc((PEOPLE.find((p) => p.pk === myPk) || {}).name || myPk.slice(0, 10))} · репутация <b style="color:var(--acc2)">${esc((PEOPLE.find((p) => p.pk === myPk) || {}).rep ?? '—')}</b></div></div>`
+    ? `<div class="card"><div class="psub">ты: @${esc(handleFromName((PEOPLE.find((p) => p.pk === myPk) || {}).name || myPk.slice(0, 10)))} · репутация <b style="color:var(--acc2)">${esc((PEOPLE.find((p) => p.pk === myPk) || {}).rep ?? '—')}</b></div></div>`
     : `<div class="card"><span class="mut">Войди (создай личность в расширении), чтобы ручаться за людей.</span></div>`;
   $('#list').innerHTML = PEOPLE.map((m) => {
-    const dn = (m.prof && m.prof.name) || m.name;
+    const handle = handleFromName(m.name);
+    const dn = (m.prof && m.prof.name) || handle;
     const mine = myPk && myPk === m.pk;
     const vouched = MYVOUCHES.has(m.pk);
     return `<div class="card"><div class="prow">
       <img class="pav" src="${avatar(m.pk, dn, m.prof)}">
-      <div style="min-width:0"><div class="pname"><a href="http://${esc(m.name)}/">${esc(dn)}</a> <span class="me">${esc(m.name)}</span></div>
+      <div style="min-width:0"><div class="pname"><a href="http://${esc(m.name)}/">${esc(dn)}</a> <span class="me">@${esc(handle)}</span></div>
         <div class="psub">в noet с ${new Date(m.since * 1000).toLocaleDateString('ru')}${m.vouchers.length ? ' · ручались: ' + m.vouchers.map(esc).join(', ') : ''}</div>
         ${myPk && !mine ? `<div class="acts">${vouched ? `<button class="g" data-un="${esc(m.pk)}">Отозвать поручительство</button>` : `<button class="b" data-v="${esc(m.pk)}">Поручиться</button>`}<span class="msg" data-m="${esc(m.pk)}"></span></div>` : ''}
       </div>

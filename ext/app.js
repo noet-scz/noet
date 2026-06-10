@@ -46,6 +46,7 @@ function query(filters) {
   });
 }
 const tag = (ev, k) => (((ev.tags || []).find((t) => t[0] === k) || [])[1]) || '';
+const handleFromName = (n) => String(n || '').replace(/\.(me|nt)$/i, '');
 
 let SK = null, PK = null, NAME = null, PROFILE = {}, PAGE = null;
 
@@ -105,7 +106,7 @@ function avatar(pk, name, prof) {
 let view = 'home', edMode = 'text', edTitle = '', edBody = '', edHtml = '';
 
 function renderHome() {
-  const dn = PROFILE.name || NAME || 'без имени';
+  const dn = PROFILE.name || handleFromName(NAME) || 'без имени';
   app().innerHTML = `
     <div class="card">
       <div class="phd"><img class="av" src="${avatar(PK, dn, PROFILE)}"><div>

@@ -24,7 +24,7 @@ function relayClaimNames() {
       ws.onmessage = (m) => {
         try {
           const a = JSON.parse(m.data);
-          if (a[0] === 'EVENT') { const d = ((a[2].tags || []).find((x) => x[0] === 'd') || [])[1]; if (d && /^[a-z0-9.-]+\.(nt|me)$/i.test(d)) names.add(d.toLowerCase()); }
+          if (a[0] === 'EVENT') { const d = ((a[2].tags || []).find((x) => x[0] === 'd') || [])[1]; if (d && /^[a-z0-9.-]+\.(nt|me)$/i.test(d) && !/^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(d)) names.add(d.toLowerCase()); }
           else if (a[0] === 'EOSE') { ws.close(); if (++closed >= socks.length) { clearTimeout(t); fin(); } }
         } catch {}
       };
