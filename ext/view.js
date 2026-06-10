@@ -152,22 +152,37 @@ async function renderContent(cid, gateways) {
 // Нужен, когда имени нет в индексе-зеркале (или реестр выключен совсем).
 let _namesMod = null;
 async function namesMod() { if (!_namesMod) _namesMod = await import(api.runtime.getURL('noet-names.js')); return _namesMod; }
-async function resolveNameViaRelays(name) {
-  try { const mod = await namesMod(); return await mod.resolveName(name, { query: (f) => relayQuery(f, { timeout: 3500 }) }); }
-  catch { return null; }
-}
+const hasD = (ev, name) => (ev.tags || []).some((t) => t[0] === 'd' && t[1] === name);
 
-// запись страницы с публичных реле: {cid} (контент в IPFS) ИЛИ {html} (страница целиком
-// в событии — без IPFS и без сервера, P6 durability: живёт, пока её держат реле)
-async function relayRecord(name, owner) {
-  if (!owner) return null;
-  try {
-    const evs = await relayQuery({ kinds: [31002], authors: [owner], '#d': [name], limit: 1 }, { timeout: 3000 });
-    const ev = evs && evs[0]; if (!ev) return null;
-    let d = {}; try { d = JSON.parse(ev.content || '{}'); } catch {}
-    const cid = d.cid || (ev.tags || []).filter((t) => t[0] === 'cid').map((t) => t[1])[0] || null;
-    return { cid, html: d.html || null, title: d.title || null };
-  } catch { return null; }
+// БЫСТРЫЙ бессерверный резолв: ОДИН запрос за заявкой (31111) И страницей (31002), с
+// РАННИМ выходом — отвечаем, как только пришла заявка+страница (≈ от самого быстрого
+// реле, <1с), не дожидаясь EOSE от всех. Один претендент → он владелец; коллизия → OTS.
+function resolveServerless(host) {
+  return new Promise((resolve) => {
+    let socks; try { socks = RELAYS.map((u) => new WebSocket(u)); } catch { return resolve(null); }
+    const claims = [], pages = []; let done = false, closed = 0, soon = null;
+    const cap = setTimeout(() => finish(), 4500);
+    function finish() {
+      if (done) return; done = true; clearTimeout(cap); clearTimeout(soon); try { socks.forEach((w) => w.close()); } catch {}
+      if (!claims.length) return resolve(null);
+      claims.sort((a, b) => a.created_at - b.created_at);
+      const owner = claims[0].pubkey;   // ранняя заявка = владелец (коллизии редки)
+      const mine = pages.filter((p) => p.pubkey === owner).sort((a, b) => b.created_at - a.created_at);
+      let rec = null; if (mine[0]) { try { const d = JSON.parse(mine[0].content); rec = { html: d.html || null, cid: d.cid || null }; } catch {} }
+      resolve({ owner, rec });
+    }
+    socks.forEach((ws) => {
+      ws.onopen = () => { try { ws.send(JSON.stringify(['REQ', 'q', { kinds: [31111], '#d': [host], limit: 20 }, { kinds: [31002], '#d': [host], limit: 20 }])); } catch {} };
+      ws.onmessage = (m) => {
+        try { const a = JSON.parse(m.data);
+          if (a[0] === 'EVENT') { const ev = a[2]; if (ev.kind === 31111 && hasD(ev, host)) claims.push(ev); else if (ev.kind === 31002 && hasD(ev, host)) pages.push(ev);
+            if (claims.length && pages.length && !soon) soon = setTimeout(finish, 400);   // есть оба → добираем 400мс и отвечаем
+          } else if (a[0] === 'EOSE') { ws.close(); if (++closed >= socks.length) finish(); }
+        } catch {}
+      };
+      ws.onerror = () => { if (++closed >= socks.length) finish(); };
+    });
+  });
 }
 
 async function main() {
@@ -179,12 +194,9 @@ async function main() {
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
-  // дом и личность живут ВНУТРИ расширения (serverless: ключ + сеть, без VPS)
-  const HOME_HOSTS = ['noet.nt', 'search.nt', 'id.nt'];
-  if (HOME_HOSTS.includes(host)) { location.href = api.runtime.getURL('app.html'); return; }
-  // остальные app-страницы (люди/разработчикам/реле) пока на узле сообщества
-  const app = (cfg.app_hosts || {})[host];
-  if (app && app[0] === '/') { location.href = regBase + app; return; }
+  // ВСЕ служебные страницы живут ВНУТРИ расширения (serverless: ключ + сеть, без VPS)
+  const APP_PAGES = { 'noet.nt': 'app.html', 'search.nt': 'app.html', 'id.nt': 'app.html', 'people.nt': 'people.html', 'dev.nt': 'dev.html', 'relay.nt': 'feed.html' };
+  if (APP_PAGES[host]) { location.href = api.runtime.getURL(APP_PAGES[host]); return; }
 
   // контент по имени
   setName(host);
@@ -192,15 +204,12 @@ async function main() {
   const names = await fetchNames(cfg);
   const rec = names[host];
   if (!rec || !rec.cid) {
-    // имени нет в индексе-зеркале → ПОЛНОСТЬЮ бессерверный путь: заявки на публичных реле
-    // (OTS-очерёдность) → запись страницы с реле (html прямо в событии или cid в IPFS)
+    // имени нет в индексе → бессерверный путь: один запрос к реле (заявка + страница)
     showMsg('<div class="spin"></div><div>Открываю…</div>');
-    const resolved = await resolveNameViaRelays(host);
-    if (resolved && resolved.owner) {
-      const r = await relayRecord(host, resolved.owner);
-      if (r && r.html) { showMsg('<div class="spin"></div>'); renderDoc(r.html, ''); return; }
-      const cid = (r && r.cid) || resolved.target;
-      if (cid) { showMsg('<div class="spin"></div><div>Открываю…</div>'); renderContent(cid, cfg.gateways || []); return; }
+    const sv = await resolveServerless(host);
+    if (sv && sv.rec) {
+      if (sv.rec.html) { renderDoc(sv.rec.html, ''); return; }
+      if (sv.rec.cid) { renderContent(sv.rec.cid, cfg.gateways || []); return; }
     }
     showMsg(`<h2>${host}</h2><div>Такой страницы пока нет.</div>`);
     return;

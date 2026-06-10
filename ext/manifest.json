@@ -73,7 +73,12 @@
         "vendor/*",
         "noet-names.js",
         "app.html",
-        "app.js"
+        "app.js",
+        "people.html",
+        "people.js",
+        "dev.html",
+        "feed.html",
+        "feed.js"
       ],
       "matches": [
         "<all_urls>"
