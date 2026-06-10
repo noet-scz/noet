@@ -71,7 +71,9 @@
         "config.default.json",
         "app/*",
         "vendor/*",
-        "noet-names.js"
+        "noet-names.js",
+        "app.html",
+        "app.js"
       ],
       "matches": [
         "<all_urls>"

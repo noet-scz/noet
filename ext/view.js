@@ -179,9 +179,10 @@ async function main() {
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
-  // приложение (дом/поиск/личность/реле) — это обычные http-страницы реестра, где
-  // вход, аккаунт и реле работают нативно (http-страница → http-API + ws, один origin,
-  // без mixed-content и без домена). Расширение только переводит туда вкладку.
+  // дом и личность живут ВНУТРИ расширения (serverless: ключ + сеть, без VPS)
+  const HOME_HOSTS = ['noet.nt', 'search.nt', 'id.nt'];
+  if (HOME_HOSTS.includes(host)) { location.href = api.runtime.getURL('app.html'); return; }
+  // остальные app-страницы (люди/разработчикам/реле) пока на узле сообщества
   const app = (cfg.app_hosts || {})[host];
   if (app && app[0] === '/') { location.href = regBase + app; return; }
 
