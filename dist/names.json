@@ -2,19 +2,19 @@
   "manifest.nt": {
     "cid": "bafybeig67kcu2zu4cdxpstgi4hgzpqmboo46plved3bzlr54imseicf5bm",
     "title": "Манифест · noet",
-    "owner": "bd5f7d3a1bdfcb4bb755d644999c8682586657879e1fdba518cc2d3445c1b446",
+    "owner": "53d2c3ecbe15d50cbd39f9feb6606d5cc4b2c712e44e06cf6071c5d1f5e0ca7a",
     "owner_handle": "nyx"
   },
   "nyx.me": {
     "cid": "bafybeihpzfdd5zrk3afmjjjnff74kbsfxsydokz6abe6on44oh34oso7bq",
     "title": "N:yx",
-    "owner": "bd5f7d3a1bdfcb4bb755d644999c8682586657879e1fdba518cc2d3445c1b446",
+    "owner": "53d2c3ecbe15d50cbd39f9feb6606d5cc4b2c712e44e06cf6071c5d1f5e0ca7a",
     "owner_handle": "nyx"
   },
   "dash.nyx.me": {
     "cid": "bafybeiddfaj3bvobx2zphqj5gjv4tzb3zixtzrrwjtprkjg6dfgfgsmnsi",
     "title": "noet dashboard",
-    "owner": "bd5f7d3a1bdfcb4bb755d644999c8682586657879e1fdba518cc2d3445c1b446",
+    "owner": "53d2c3ecbe15d50cbd39f9feb6606d5cc4b2c712e44e06cf6071c5d1f5e0ca7a",
     "owner_handle": "nyx"
   }
 }
