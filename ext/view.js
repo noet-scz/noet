@@ -124,8 +124,12 @@ window.addEventListener('message', async (e) => {
   }
 });
 
-// забрать байты страницы со шлюза (он их отдаёт, даже если не выполняет JS) и
-// отрисовать в sandbox-странице render.html, где JS работает
+// показать готовый html в sandbox-странице render.html (там работает JS)
+async function renderDoc(html, base) {
+  _pendingDoc = { html, base: base || '', sdk: await sdkSrc() };
+  $('#frame').src = api.runtime.getURL('render.html');
+}
+// IPFS: забрать байты страницы со шлюза (он их отдаёт, даже если не выполняет JS) и показать
 async function renderContent(cid, gateways) {
   let html = null, base = '';
   for (let i = 0; i < gateways.length; i++) {
@@ -138,8 +142,7 @@ async function renderContent(cid, gateways) {
     } catch { /* следующий шлюз */ }
   }
   if (html == null) { showMsg('<h2>Контент недоступен</h2><div>Контент ещё расходится по сети IPFS, или шлюзы недоступны. Обнови через минуту.</div>'); return; }
-  _pendingDoc = { html, base, sdk: await sdkSrc() };
-  $('#frame').src = api.runtime.getURL('render.html');
+  return renderDoc(html, base);
 }
 
 // P2: «вид, а не хранилище». Указатель страницы живёт ещё и на публичных реле как
@@ -154,15 +157,16 @@ async function resolveNameViaRelays(name) {
   catch { return null; }
 }
 
-async function relayRecordCid(name, owner) {
+// запись страницы с публичных реле: {cid} (контент в IPFS) ИЛИ {html} (страница целиком
+// в событии — без IPFS и без сервера, P6 durability: живёт, пока её держат реле)
+async function relayRecord(name, owner) {
   if (!owner) return null;
   try {
     const evs = await relayQuery({ kinds: [31002], authors: [owner], '#d': [name], limit: 1 }, { timeout: 3000 });
-    const ev = evs && evs[0];
-    if (!ev) return null;
-    let cid = null; try { cid = JSON.parse(ev.content || '{}').cid; } catch {}
-    if (!cid) cid = (ev.tags || []).filter((t) => t[0] === 'cid').map((t) => t[1])[0] || null;
-    return cid || null;
+    const ev = evs && evs[0]; if (!ev) return null;
+    let d = {}; try { d = JSON.parse(ev.content || '{}'); } catch {}
+    const cid = d.cid || (ev.tags || []).filter((t) => t[0] === 'cid').map((t) => t[1])[0] || null;
+    return { cid, html: d.html || null, title: d.title || null };
   } catch { return null; }
 }
 
@@ -187,11 +191,14 @@ async function main() {
   const names = await fetchNames(cfg);
   const rec = names[host];
   if (!rec || !rec.cid) {
-    // имени нет в индексе-зеркале → бессерверный путь: заявки на публичных реле + OTS
+    // имени нет в индексе-зеркале → ПОЛНОСТЬЮ бессерверный путь: заявки на публичных реле
+    // (OTS-очерёдность) → запись страницы с реле (html прямо в событии или cid в IPFS)
     showMsg('<div class="spin"></div><div>резолвлю без сервера…</div>');
     const resolved = await resolveNameViaRelays(host);
     if (resolved && resolved.owner) {
-      let cid = resolved.target || (await relayRecordCid(host, resolved.owner));
+      const r = await relayRecord(host, resolved.owner);
+      if (r && r.html) { showMsg('<div class="spin"></div>'); renderDoc(r.html, ''); return; }
+      const cid = (r && r.cid) || resolved.target;
       if (cid) { showMsg('<div class="spin"></div><div>тяну из IPFS…</div>'); renderContent(cid, cfg.gateways || []); return; }
     }
     showMsg(`<h2>${host}</h2><div>Имя не зарегистрировано в noet.</div>`);
@@ -199,9 +206,12 @@ async function main() {
   }
   showMsg('<div class="spin"></div><div>тяну из IPFS…</div>');
   renderContent(rec.cid, cfg.gateways || []);   // мгновенно: CID из индекса имён (быстрый путь)
-  // фоном: вдруг на публичных реле есть более свежий указатель (обновление автора или
-  // другой экземпляр) — тогда переключаемся на него. Нет регресса скорости: рендер уже идёт.
-  relayRecordCid(host, rec.owner).then((cid) => { if (cid && cid !== rec.cid) renderContent(cid, cfg.gateways || []); }).catch(() => {});
+  // фоном: вдруг на публичных реле есть более свежая запись (обновление автора или другой
+  // экземпляр) — html прямо в событии или новый cid. Нет регресса скорости: рендер уже идёт.
+  relayRecord(host, rec.owner).then((r) => {
+    if (r && r.html) renderDoc(r.html, '');
+    else if (r && r.cid && r.cid !== rec.cid) renderContent(r.cid, cfg.gateways || []);
+  }).catch(() => {});
 }
 
 main();
