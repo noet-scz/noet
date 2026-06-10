@@ -53,6 +53,28 @@ async function broadcastRecord({ name, cid, title, mode }) {
     await broadcastEvent(ev);
   } catch { /* указатель в реестре уже есть; реле это переносимость, не критично */ }
 }
+
+// P5: имя без сервера. Заявка на имя (31111, подписана владельцем) + штамп её id в
+// OTS-календарь (бесплатно, якорится в Bitcoin) → отдельное proof-событие (31112).
+// Тогда «кто владелец имени» считается клиентами по самой ранней проанкоренной заявке,
+// без судьи и без нашего сервера. Делает сам пользователь, его браузером.
+const OTS_CALENDARS = ['https://alice.btc.calendar.opentimestamps.org', 'https://bob.btc.calendar.opentimestamps.org'];
+async function broadcastClaim(name, target) {
+  if (!name) return;
+  try {
+    const claim = await sign({ kind: 31111, tags: [['d', name], ['t', 'noet-name'], ['target', String(target || '')]], content: '' });
+    await broadcastEvent(claim);
+    const dg = Uint8Array.from(claim.id.match(/.{2}/g).map((b) => parseInt(b, 16)));   // id заявки = дайджест для OTS
+    let proofB64 = null;
+    for (const cal of OTS_CALENDARS) {
+      try {
+        const r = await fetch(cal + '/digest', { method: 'POST', headers: { 'content-type': 'application/octet-stream', accept: 'application/octet-stream' }, body: dg, signal: AbortSignal.timeout(8000) });
+        if (r.ok) { const buf = new Uint8Array(await r.arrayBuffer()); if (buf.length) { let s = ''; for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i]); proofB64 = btoa(s); break; } }
+      } catch { /* следующий календарь */ }
+    }
+    if (proofB64) { const pe = await sign({ kind: 31112, tags: [['d', name], ['e', claim.id]], content: proofB64 }); await broadcastEvent(pe); }
+  } catch { /* реестр всё равно знает имя; OTS это путь к бессерверности */ }
+}
 async function api(path, opts) {
   let r; try { r = await fetch(path, opts); } catch { const e = new Error('network'); e.code = 'network'; throw e; }
   const j = await r.json().catch(() => ({}));
@@ -438,6 +460,7 @@ function renderApp() {
         const files = [{ path: 'index.html', data: b64(html) }, { path: 'noet.env.json', data: b64(JSON.stringify({ APP: (state.me || {}).handle })) }];
         const dr = await OPS.publishDir({ sub: 'dash', files });
         broadcastRecord({ name: dr.name, cid: dr.cid, title: dr.title, mode: 'dir' }).catch(() => {});  // P2
+        broadcastClaim(dr.name, dr.cid).catch(() => {});  // P5
         await refresh(); render();
         const el = id('dashmsg'); if (el) { el.className = 'msg ok'; el.textContent = t('dash_made'); }
       } catch (e) { setMsg('dashmsg', errText(e), 'err'); }
@@ -489,6 +512,7 @@ function renderApp() {
           r = await OPS.publish({ title, body }); state.edTitle = title; state.edBody = body;
         }
         broadcastRecord({ name: r.name, cid: r.cid, title: r.title, mode: state.edMode }).catch(() => {});  // P2: указатель на реле (фоном)
+        broadcastClaim(r.name, r.cid).catch(() => {});  // P5: заявка имени + OTS-штамп (фоном)
         const el = id('edmsg'); el.className = 'msg ok';
         el.textContent = t('published') + ' ';
         const a = document.createElement('a'); a.href = 'http://' + r.name + '/'; a.textContent = r.name; a.target = '_blank'; el.appendChild(a);

@@ -145,6 +145,15 @@ async function renderContent(cid, gateways) {
 // P2: «вид, а не хранилище». Указатель страницы живёт ещё и на публичных реле как
 // подписанное событие 31002 (d=имя, content={cid,…}), поэтому обновления и другой
 // экземпляр видят его БЕЗ нашего сервера. Берём свежий указатель владельца, если есть.
+// P5: бессерверный резолв имени по заявкам на публичных реле (OTS-очерёдность).
+// Нужен, когда имени нет в индексе-зеркале (или реестр выключен совсем).
+let _namesMod = null;
+async function namesMod() { if (!_namesMod) _namesMod = await import(api.runtime.getURL('noet-names.js')); return _namesMod; }
+async function resolveNameViaRelays(name) {
+  try { const mod = await namesMod(); return await mod.resolveName(name, { query: (f) => relayQuery(f, { timeout: 3500 }) }); }
+  catch { return null; }
+}
+
 async function relayRecordCid(name, owner) {
   if (!owner) return null;
   try {
@@ -178,6 +187,13 @@ async function main() {
   const names = await fetchNames(cfg);
   const rec = names[host];
   if (!rec || !rec.cid) {
+    // имени нет в индексе-зеркале → бессерверный путь: заявки на публичных реле + OTS
+    showMsg('<div class="spin"></div><div>резолвлю без сервера…</div>');
+    const resolved = await resolveNameViaRelays(host);
+    if (resolved && resolved.owner) {
+      let cid = resolved.target || (await relayRecordCid(host, resolved.owner));
+      if (cid) { showMsg('<div class="spin"></div><div>тяну из IPFS…</div>'); renderContent(cid, cfg.gateways || []); return; }
+    }
     showMsg(`<h2>${host}</h2><div>Имя не зарегистрировано в noet.</div>`);
     return;
   }
