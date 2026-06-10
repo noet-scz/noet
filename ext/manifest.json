@@ -79,7 +79,8 @@
         "dev.html",
         "feed.html",
         "feed.js",
-        "home.html"
+        "home.html",
+        "home.js"
       ],
       "matches": [
         "<all_urls>"
