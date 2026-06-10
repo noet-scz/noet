@@ -62,12 +62,20 @@ const ok = await noet.policy.can({ scope: space, action: "post", pubkey: me.pubk
   <pre><code>await noet.publish({ kind: 1, tags: [], content: "привет" }); // подписать + разослать в реле
 const events = await noet.query({ kinds: [1], authors: [pk] });</code></pre>
 
-  <div class="box" style="background:#101016;border:1px solid var(--bd,#23232c);border-radius:12px;padding:1rem;margin:1.4rem 0">
-    <b>Живой пример: гостевая книга</b> — Space + Artifact + Relation, целиком на примитивах,
-    ~80 строк, без сервера. Открой <a href="https://noet-scz.github.io/noet/sites/guestbook/" target=_blank>исходник</a>,
-    задеплой через свой аккаунт (поддомен, напр. <code>gb.твойтег.me</code>) — получишь свою книгу.
-    Поменяй разметку — получится форум или доска отзывов. Ядро не трогается.
-  </div>
+  <h2>Готовые шаблоны (форк и деплой)</h2>
+  <p>Разные продукты на ОДНИХ примитивах — ядро не меняется, меняется только разметка
+  снаружи. Открой исходник, скачай папку, задеплой через аккаунт под своим поддоменом
+  (напр. <code>forum.твойтег.me</code>), при желании задай тему в <code>noet.env.json</code>
+  (<code>{"APP":"моё-имя"}</code>). Это и есть смысл noet: ты строишь своё.</p>
+  <table>
+    <tr><th>Шаблон</th><th>Примитивы</th><th>Исходник</th></tr>
+    <tr><td>Гостевая книга</td><td>Space feed + Artifact + Relation</td><td><a href="https://noet-scz.github.io/noet/sites/guestbook/" target=_blank>открыть</a></td></tr>
+    <tr><td>Форум</td><td>темы (Artifact) + ответы (Relation reply)</td><td><a href="https://noet-scz.github.io/noet/sites/forum/" target=_blank>открыть</a></td></tr>
+    <tr><td>Блог</td><td>статьи (Artifact, лонгрид 30023)</td><td><a href="https://noet-scz.github.io/noet/sites/blog/" target=_blank>открыть</a></td></tr>
+    <tr><td>Дашборд / Игра</td><td>события + аналитика (Artifact)</td><td><a href="https://noet-scz.github.io/noet/sites/dashboard/" target=_blank>дашборд</a> · <a href="https://noet-scz.github.io/noet/sites/clicker/" target=_blank>кликер</a></td></tr>
+  </table>
+  <p class="mut" style="font-size:.9rem">Поменяй разметку форума — получится Q&amp;A или баг-трекер.
+  Добавь к блогу комментарии (Relation) — выйдет медиа. Ни одна правка не трогает ядро noet.</p>
 
   <h2>window.nostr — подпись (NIP-07)</h2>
   <p>Стандартный интерфейс подписи. Ключ живёт в расширении и не попадает на страницу.</p>
