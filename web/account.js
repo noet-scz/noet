@@ -31,6 +31,25 @@ async function sign(ev) {
   return ev;
 }
 const authH = () => { const t = LS.getItem(K_TOK); return t ? { authorization: 'Bearer ' + t } : {}; };
+
+// P2: указатель страницы дублируем на публичные реле подписанным событием 31002
+// (адресуемое, d=имя). Тогда обновление и любой другой экземпляр видят страницу БЕЗ
+// нашего сервера: данные привязаны к ключу автора, а не к реестру. Дозапись, не замена.
+const PUB_RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
+async function broadcastRecord({ name, cid, title, mode }) {
+  if (!name || !cid) return;
+  try {
+    const ev = await sign({ kind: 31002, tags: [['d', name], ['cid', cid]], content: JSON.stringify({ cid, title: title || name, mode: mode || 'page' }) });
+    const msg = JSON.stringify(['EVENT', ev]);
+    await Promise.allSettled(PUB_RELAYS.map((u) => new Promise((res) => {
+      let ws; try { ws = new WebSocket(u); } catch { return res(); }
+      const t = setTimeout(() => { try { ws.close(); } catch {} res(); }, 4000);
+      ws.onopen = () => { try { ws.send(msg); } catch {} };
+      ws.onmessage = () => { clearTimeout(t); try { ws.close(); } catch {} res(); };
+      ws.onerror = () => { clearTimeout(t); res(); };
+    })));
+  } catch { /* указатель в реестре уже есть; реле это переносимость, не критично */ }
+}
 async function api(path, opts) {
   let r; try { r = await fetch(path, opts); } catch { const e = new Error('network'); e.code = 'network'; throw e; }
   const j = await r.json().catch(() => ({}));
@@ -411,7 +430,8 @@ function renderApp() {
         const html = await (await fetch('https://noet-scz.github.io/noet/sites/dashboard/index.html', { cache: 'no-cache' })).text();
         const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
         const files = [{ path: 'index.html', data: b64(html) }, { path: 'noet.env.json', data: b64(JSON.stringify({ APP: (state.me || {}).handle })) }];
-        await OPS.publishDir({ sub: 'dash', files });
+        const dr = await OPS.publishDir({ sub: 'dash', files });
+        broadcastRecord({ name: dr.name, cid: dr.cid, title: dr.title, mode: 'dir' }).catch(() => {});  // P2
         await refresh(); render();
         const el = id('dashmsg'); if (el) { el.className = 'msg ok'; el.textContent = t('dash_made'); }
       } catch (e) { setMsg('dashmsg', errText(e), 'err'); }
@@ -462,6 +482,7 @@ function renderApp() {
           const body = id('ed_body').value || '';
           r = await OPS.publish({ title, body }); state.edTitle = title; state.edBody = body;
         }
+        broadcastRecord({ name: r.name, cid: r.cid, title: r.title, mode: state.edMode }).catch(() => {});  // P2: указатель на реле (фоном)
         const el = id('edmsg'); el.className = 'msg ok';
         el.textContent = t('published') + ' ';
         const a = document.createElement('a'); a.href = 'http://' + r.name + '/'; a.textContent = r.name; a.target = '_blank'; el.appendChild(a);

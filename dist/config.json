@@ -16,5 +16,10 @@
     "relay.nt": "/relay",
     "people.nt": "/people",
     "dev.nt": "/dev"
-  }
+  },
+  "relays": [
+    "wss://relay.damus.io",
+    "wss://nos.lol",
+    "wss://relay.nostr.band"
+  ]
 }

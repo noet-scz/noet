@@ -188,10 +188,27 @@ function render() {
 async function signed(kind, tags) {
   return await window.Noet.signEvent({ event: { kind, tags, content: '', created_at: Math.floor(Date.now() / 1000) } });
 }
+// P2: события личности/политики (поручительства 8001/8002, доступы 8010/8011) дублируем
+// на публичные реле. Тогда другой экземпляр видит репутацию и доступы БЕЗ нашего сервера:
+// истина в подписанных событиях, реестр лишь индекс. Дозапись, не замена.
+const PUB_RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
+function broadcastToRelays(ev) {
+  try {
+    const msg = JSON.stringify(['EVENT', ev]);
+    PUB_RELAYS.forEach((u) => { try {
+      const ws = new WebSocket(u);
+      const t = setTimeout(() => { try { ws.close(); } catch (e) {} }, 4000);
+      ws.onopen = () => { try { ws.send(msg); } catch (e) {} };
+      ws.onmessage = () => { clearTimeout(t); try { ws.close(); } catch (e) {} };
+      ws.onerror = () => clearTimeout(t);
+    } catch (e) {} });
+  } catch (e) {}
+}
 async function post(path, event) {
   const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || 'не получилось');
+  broadcastToRelays(event);   // прошло проверку реестра — раздаём на нейтральные реле
   return j;
 }
 const setMsg = (el, text, cls) => { if (el) { el.textContent = text; el.className = 'msg ' + (cls || ''); } };
