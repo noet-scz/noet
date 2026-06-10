@@ -1,0 +1,50 @@
+<!doctype html><html><body>
+<iframe id="f" src="render.html" style="width:300px;height:80px"></iframe>
+<script>
+window.__result = 'none';
+// роль view.js: мок-ядро (me/publish/query) + отдаём render.html документ с SDK
+var STORE = [];
+function mkid(){ return Math.random().toString(16).slice(2).padEnd(64,'0').slice(0,64); }
+function matches(ev, f){
+  if (f.ids && f.ids.indexOf(ev.id)<0) return false;
+  if (f.authors && f.authors.indexOf(ev.pubkey)<0) return false;
+  if (f.kinds && f.kinds.indexOf(ev.kind)<0) return false;
+  for (var k in f){ if(k[0]!=='#') continue; var tag=k.slice(1), want=f[k];
+    var got=(ev.tags||[]).filter(function(t){return t[0]===tag}).map(function(t){return t[1]});
+    if(!want.some(function(v){return got.indexOf(v)>=0})) return false; }
+  return true;
+}
+var doc = '<!doctype html><html><head></head><body><div id=o>?</div>'
+ + '<scr'+'ipt>(async function(){try{var out={};'
+ + 'var me=await noet.me(); out.me=me.pubkey.slice(0,6);'
+ + 'var sp=await noet.space.create({type:"forum",title:"T"}); out.spaceKind=sp.event.kind; out.spaceType=(sp.event.tags.find(function(t){return t[0]=="type"})||[])[1]; out.coord=sp.coord;'
+ + 'var a=await noet.artifact.publish({space:sp,content:"hi",topic:"gb:x"}); out.artKind=a.kind; out.artA=(a.tags.find(function(t){return t[0]=="a"})||[])[1]===sp.coord; out.artT=(a.tags.find(function(t){return t[0]=="t"})||[])[1];'
+ + 'var r=await noet.relation.add({type:"reply",to:a.id,toAuthor:me.pubkey,space:sp,topic:"gb:x",content:"re"}); out.relEcount=r.tags.filter(function(t){return t[0]=="e"}).length; out.relRoot=(r.tags.find(function(t){return t[0]=="e"})||[])[3]; out.relP=r.tags.some(function(t){return t[0]=="p"});'
+ + 'var feed=await noet.artifact.query({topic:"gb:x",kinds:[1]}); out.feedLen=feed.length;'
+ + 'var reps=await noet.relation.query({to:a.id}); out.repsLen=reps.length;'
+ + 'var pol=await noet.policy.set(sp,{post:{minRep:3}}); out.polKind=pol.event.kind;'
+ + 'var can=await noet.policy.can({rules:{post:{minRep:3}},action:"post",rep:5}); out.canTrue=can.allowed;'
+ + 'var can2=await noet.policy.can({rules:{post:{minRep:9}},action:"post",rep:2}); out.canFalse=can2.allowed;'
+ + 'out.ver=noet.version;'
+ + 'parent.postMessage({test:JSON.stringify(out)},"*");'
+ + '}catch(e){parent.postMessage({test:"ERR "+e.message},"*");}})();</scr'+'ipt>'
+ + '</body></html>';
+var SDK = null;
+fetch('noet-primitives.js').then(function(r){return r.text();}).then(function(t){ SDK=t; });
+window.addEventListener('message', function(e){
+  var d = e.data;
+  if (d && d.__noetRender === 'ready') { e.source.postMessage({__noetRender:'doc', html:doc, base:'', sdk:SDK}, '*'); return; }
+  if (d && d.__noetCall) {
+    var res, err;
+    try {
+      if (d.api==='noet' && d.method==='me') res={pubkey:'feedface'.padEnd(64,'0')};
+      else if (d.api==='noet' && d.method==='publish'){ var ev=d.params; ev.id=mkid(); ev.pubkey='feedface'.padEnd(64,'0'); ev.sig='00'; STORE.push(ev); res=ev; }
+      else if (d.api==='noet' && d.method==='query'){ var f=d.params[0]; res=STORE.filter(function(x){return matches(x,f)}); }
+      else res={};
+    } catch(ex){ err=ex.message; }
+    e.source.postMessage({__noetRes:1, id:d.id, result:res, error:err}, '*');
+    return;
+  }
+  if (d && d.test) window.__result = d.test;
+});
+</script></body></html>

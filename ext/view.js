@@ -101,11 +101,19 @@ async function handleCall(apiName, method, params) {
   throw new Error('неизвестный вызов');
 }
 
+// исходник SDK примитивов — один раз тянем из пакета расширения и вкладываем в рендер,
+// чтобы у контента был тот же window.noet, что и на обычных страницах
+let _sdkSrc = null;
+async function sdkSrc() {
+  if (_sdkSrc == null) { try { _sdkSrc = await (await fetch(api.runtime.getURL('noet-primitives.js'))).text(); } catch { _sdkSrc = ''; } }
+  return _sdkSrc;
+}
+
 let _pendingDoc = null;
 window.addEventListener('message', async (e) => {
   const d = e.data;
   if (d && d.__noetRender === 'ready') {
-    if (_pendingDoc) { try { e.source.postMessage({ __noetRender: 'doc', html: _pendingDoc.html, base: _pendingDoc.base }, '*'); } catch {} }
+    if (_pendingDoc) { try { e.source.postMessage({ __noetRender: 'doc', html: _pendingDoc.html, base: _pendingDoc.base, sdk: _pendingDoc.sdk }, '*'); } catch {} }
     $('#msg').style.display = 'none'; $('#frame').hidden = false;
     return;
   }
@@ -130,7 +138,7 @@ async function renderContent(cid, gateways) {
     } catch { /* следующий шлюз */ }
   }
   if (html == null) { showMsg('<h2>Контент недоступен</h2><div>Контент ещё расходится по сети IPFS, или шлюзы недоступны. Обнови через минуту.</div>'); return; }
-  _pendingDoc = { html, base };
+  _pendingDoc = { html, base, sdk: await sdkSrc() };
   $('#frame').src = api.runtime.getURL('render.html');
 }
 

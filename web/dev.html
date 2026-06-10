@@ -25,16 +25,49 @@
   <p class=lead>Всё, что нужно, чтобы построить своё на noet: страницы, игры, доски, дашборды. Сервер для этого не нужен.</p>
   <nav class=crumbs><a href="/">Поиск</a><a href="/people">Люди</a><a href="/id">Аккаунт</a></nav>
 
-  <h2>window.noet — данные твоего приложения</h2>
-  <p>На каждой странице, открытой через noet, доступен <code>window.noet</code>. Данные это подписанные события: они принадлежат автору, хранятся в общей сети и переживают любой отдельный сервер.</p>
-  <pre><code>// кто я
-const { pubkey } = await noet.me();
+  <h2>Конструктор: пять примитивов</h2>
+  <p>На каждой странице, открытой через noet, доступен <code>window.noet</code> — конструктор из
+  пяти примитивов. Из них собирается что угодно (форум, блог, доска, вики, маркет), <b>не меняя
+  ядро</b>. Данные это подписанные события: они принадлежат автору, живут в общей сети и
+  переживают любой отдельный сервер. Версия SDK: <code>noet.version</code>.</p>
 
-// сохранить запись (например, рекорд игры)
-await noet.publish({ kind: 30078, tags: [["d","my-game-score"], ["t","my-game"]], content: "1240" });
+  <h3 style="color:var(--acc2);font-size:1rem;margin:1.4rem 0 .4rem">Identity — кто действует</h3>
+  <pre><code>const me = await noet.identity.me();          // { pubkey }
+const profile = await noet.identity.get(pubkey); // { name, picture, about }</code></pre>
 
-// прочитать записи (лидерборд)
-const events = await noet.query({ kinds: [30078], "#t": ["my-game"] });</code></pre>
+  <h3 style="color:var(--acc2);font-size:1rem;margin:1.4rem 0 .4rem">Space — пространство (любой тип)</h3>
+  <pre><code>// type это строка, ядро её не толкует: feed / forum / board / wiki / market / page …
+const space = await noet.space.create({ type: "forum", title: "Мой форум" });
+const s = await noet.space.get(space.coord);
+const mine = await noet.space.list({ owner: me.pubkey });</code></pre>
+
+  <h3 style="color:var(--acc2);font-size:1rem;margin:1.4rem 0 .4rem">Artifact — содержимое</h3>
+  <pre><code>// мелкое (текст/json) = событие; крупное (файл) = CID в IPFS, ссылка в событии
+await noet.artifact.publish({ space, content: "первый пост" });
+await noet.artifact.publish({ key: "score", content: "1240", topic: "my-game" }); // изменяемое
+const feed = await noet.artifact.query({ space });        // лента пространства
+const board = await noet.artifact.query({ topic: "my-game" });</code></pre>
+
+  <h3 style="color:var(--acc2);font-size:1rem;margin:1.4rem 0 .4rem">Relation — связи</h3>
+  <pre><code>await noet.relation.add({ type: "reply", to: postId, toAuthor: pk, content: "ответ" });
+await noet.relation.add({ type: "react", to: postId, content: "🔥" });
+const replies = await noet.relation.query({ to: postId });</code></pre>
+
+  <h3 style="color:var(--acc2);font-size:1rem;margin:1.4rem 0 .4rem">Policy — правила</h3>
+  <pre><code>await noet.policy.set(space, { post: { minRep: 3 }, mods: [pk] });
+const rules = await noet.policy.get(space);
+const ok = await noet.policy.can({ scope: space, action: "post", pubkey: me.pubkey }); // подсказка UI</code></pre>
+
+  <h3 style="color:var(--acc2);font-size:1rem;margin:1.4rem 0 .4rem">Низкий уровень (если нужно своё)</h3>
+  <pre><code>await noet.publish({ kind: 1, tags: [], content: "привет" }); // подписать + разослать в реле
+const events = await noet.query({ kinds: [1], authors: [pk] });</code></pre>
+
+  <div class="box" style="background:#101016;border:1px solid var(--bd,#23232c);border-radius:12px;padding:1rem;margin:1.4rem 0">
+    <b>Живой пример: гостевая книга</b> — Space + Artifact + Relation, целиком на примитивах,
+    ~80 строк, без сервера. Открой <a href="https://noet-scz.github.io/noet/sites/guestbook/" target=_blank>исходник</a>,
+    задеплой через свой аккаунт (поддомен, напр. <code>gb.твойтег.me</code>) — получишь свою книгу.
+    Поменяй разметку — получится форум или доска отзывов. Ядро не трогается.
+  </div>
 
   <h2>window.nostr — подпись (NIP-07)</h2>
   <p>Стандартный интерфейс подписи. Ключ живёт в расширении и не попадает на страницу.</p>
