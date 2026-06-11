@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru" data-page="domains.nt"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Домены · noet</title>
+<style>
+  :root{--bg:#0a0a0d;--panel:#121219;--panel2:#16161f;--bd:#23232e;--bd2:#30303c;--fg:#f1f1f5;--mut:#9595a3;--acc:#7c5cff;--acc2:#9d8bff;--ok:#3ddc97;--err:#ff7b8a;--ring:0 0 0 3px rgba(124,92,255,.16)}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%}
+  body{background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:60rem;margin:0 auto;padding:1.8rem 1.3rem 6rem}
+  .head{display:flex;align-items:center;gap:.9rem;margin-bottom:1.4rem;flex-wrap:wrap}
+  .head h1{font-size:1.7rem;font-weight:700;letter-spacing:-.4px;margin:0}
+  .cap{margin-left:auto;display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;color:var(--mut);background:var(--panel2);border:1px solid var(--bd);border-radius:999px;padding:.3rem .8rem}
+  .cap b{color:var(--fg)}.cap.full b{color:var(--acc2)}
+  .cols{display:grid;gap:1.1rem;grid-template-columns:1fr;align-items:start}
+  @media(min-width:780px){.cols{grid-template-columns:1.55fr 1fr}}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--bd);border-radius:16px;padding:1.1rem 1.2rem;box-shadow:0 10px 36px rgba(0,0,0,.32)}
+  .card h2{font-size:1.05rem;margin:.1rem 0 .9rem}
+  .drow{display:flex;align-items:center;gap:.6rem;padding:.7rem .2rem;border-top:1px solid #1d1d27}.drow:first-child{border-top:0}
+  .drow .nm{font-weight:650;font-size:1rem}.drow .nm.sub{font-weight:600;color:#dcdce4}
+  .badge{font-size:.68rem;letter-spacing:.3px;text-transform:uppercase;color:var(--acc2);background:rgba(124,92,255,.12);border:1px solid rgba(124,92,255,.3);border-radius:999px;padding:.1rem .5rem}
+  .acts{margin-left:auto;display:flex;gap:.1rem;flex-wrap:wrap;justify-content:flex-end}
+  .acts button{background:0;border:0;color:var(--mut);cursor:pointer;font:inherit;font-size:.84rem;padding:.32rem .55rem;border-radius:8px;white-space:nowrap}
+  .acts button:hover{color:var(--fg);background:#1d1d27}.acts button.danger:hover{color:var(--err);background:rgba(255,123,138,.08)}
+  .empty{color:var(--mut);padding:.6rem .2rem;font-size:.92rem}
+  label{display:block;color:var(--mut);font-size:.8rem;margin-bottom:.4rem}
+  .field{display:flex;gap:.55rem;align-items:stretch}
+  input{width:100%;background:var(--bg);border:1px solid var(--bd2);color:var(--fg);border-radius:11px;padding:.7rem .85rem;font:inherit;outline:none;transition:.15s}
+  input:focus{border-color:var(--acc);box-shadow:var(--ring)}input::placeholder{color:#5a5a68}
+  input:disabled{opacity:.5}
+  .sel{position:relative;flex:0 0 auto}
+  select{appearance:none;-webkit-appearance:none;background:var(--bg);border:1px solid var(--bd2);color:var(--fg);border-radius:11px;padding:.7rem 2.1rem .7rem .85rem;font:inherit;cursor:pointer;outline:none;transition:.15s}
+  select:focus{border-color:var(--acc);box-shadow:var(--ring)}
+  .sel::after{content:"";position:absolute;right:.8rem;top:50%;width:.5rem;height:.5rem;border-right:2px solid var(--mut);border-bottom:2px solid var(--mut);transform:translateY(-65%) rotate(45deg);pointer-events:none}
+  button.pri{background:var(--acc);border:0;color:#fff;border-radius:11px;padding:.7rem 1.2rem;font:inherit;font-weight:600;cursor:pointer;transition:.1s;white-space:nowrap}.pri:hover{background:#6b4dff}.pri:disabled{opacity:.45;cursor:not-allowed}
+  .dot{align-self:center;color:var(--mut);font-weight:600}
+  .note{color:var(--mut);font-size:.82rem;margin-top:.7rem}.note a{color:var(--acc2)}
+  .msg{font-size:.86rem;margin-top:.6rem;min-height:1em}.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}.msg a{color:var(--acc2)}
+  .screate{display:flex;gap:.5rem;align-items:stretch;margin-bottom:.4rem;flex-wrap:wrap}.screate input{flex:1;min-width:7rem}
+  .sub h2{margin-top:0}
+  /* редактор */
+  .ebar{display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;flex-wrap:wrap}.ebar .sp{flex:1}.ebar .mut{color:var(--mut)}
+  .seg{display:inline-flex;background:var(--bg);border:1px solid var(--bd2);border-radius:11px;padding:3px;gap:3px}.seg button{background:0;border:0;color:var(--mut);padding:.45rem 1rem;border-radius:8px;cursor:pointer;font:inherit}.seg button.on{background:var(--acc);color:#fff}
+  .gho{background:var(--bg);border:1px solid var(--bd2);color:var(--fg);border-radius:11px;padding:.6rem 1rem;cursor:pointer;font:inherit;font-weight:600}.gho:hover{border-color:var(--acc)}
+  textarea{width:100%;background:var(--bg);border:1px solid var(--bd2);color:var(--fg);border-radius:12px;padding:.8rem .9rem;font:inherit;outline:none;resize:vertical;min-height:8rem}textarea:focus{border-color:var(--acc);box-shadow:var(--ring)}
+  textarea.code{font:13px/1.6 ui-monospace,Menlo,monospace;min-height:16rem}
+  .mut{color:var(--mut)}a{color:var(--acc2)}
+</style></head>
+<body><div class="wrap"><div id="app"><div class="mut">…</div></div></div>
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
+  var tagv = function (ev, k) { var t = (ev.tags || []).find(function (x) { return x[0] === k; }); return t ? t[1] : ''; };
+  var isTest = function (n) { return /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n); };
+  var baseOfName = function (n) { var p = String(n).split('.'); return p.length <= 2 ? n : p.slice(-2).join('.'); };
+
+  var LANG = 'ru';
+  var DICT = {
+    ru: { title: 'Домены', noKey: 'Создай личность в расширении noet, потом обнови.', refresh: 'Обновить', capacity: 'ёмкость', primary: 'основной', makePrimary: 'основным', open: 'открыть', page: 'страница', release: 'освободить', newName: 'Новое имя', namePh: 'имя, напр. shop', register: 'Занять', taken: 'Занято.', enter: 'Впиши имя.', full: 'Лимит исчерпан. Ёмкость растёт за стаж и поручительства в <a href="http://people.nt/" data-go="people.nt">Людях</a>.', working: '…', noDomains: 'Имён пока нет.', subdomains: 'Поддомены', subPh: 'метка', create: 'Создать', subExists: 'Уже есть.', noSubs: 'Поддоменов пока нет.', failed: 'Не вышло.', back: '← к доменам', mText: 'Текст', mHtml: 'HTML', publish: 'Опубликовать', titlePh: 'заголовок', bodyPh: 'Текст страницы. Пустая строка это новый абзац.', empty: 'Пусто.', publishing: '…', done: 'Готово, {n} обновлена.', myPageBody: 'Это моя страница в noet.' },
+    en: { title: 'Domains', noKey: 'Create an identity in the noet extension, then refresh.', refresh: 'Refresh', capacity: 'capacity', primary: 'primary', makePrimary: 'set primary', open: 'open', page: 'page', release: 'release', newName: 'New name', namePh: 'name, e.g. shop', register: 'Register', taken: 'Taken.', enter: 'Enter a name.', full: 'Limit reached. Capacity grows with tenure and vouches in <a href="http://people.nt/" data-go="people.nt">People</a>.', working: '…', noDomains: 'No names yet.', subdomains: 'Subdomains', subPh: 'label', create: 'Create', subExists: 'Already exists.', noSubs: 'No subdomains yet.', failed: 'Failed.', back: '← to domains', mText: 'Text', mHtml: 'HTML', publish: 'Publish', titlePh: 'title', bodyPh: 'Page text. An empty line starts a new paragraph.', empty: 'Empty.', publishing: '…', done: 'Done, {n} updated.', myPageBody: 'This is my page on noet.' }
+  };
+  var T = function (k, v) { var s = (DICT[LANG] || DICT.ru)[k] || DICT.ru[k] || k; if (v) for (var x in v) s = s.replace('{' + x + '}', v[x]); return s; };
+
+  var PK = null, PROFILE = {}, DOMAINS = [], SUBS = [], PAGES = {}, CAP = 1, PRIMARY = null, ED = null, mode = 'text', edTitle = '', edBody = '', edHtml = '';
+
+  function pageFromText(title, body) { var b = String(body || '').replace(/\r/g, '').split(/\n{2,}/).map(function (x) { x = x.trim(); return x ? '<p>' + esc(x).replace(/\n/g, '<br>') + '</p>' : ''; }).join('\n  ');
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title || 'noet') + '</title><style>body{font:18px/1.7 -apple-system,system-ui,sans-serif;background:#0d0d12;color:#ececf2;max-width:40rem;margin:0 auto;padding:3.5rem 1.3rem}h1{color:#fff;font-size:2.1rem;margin:0 0 1rem}p{margin:0 0 1.1rem}a{color:#9d8bff}</style></head><body>' + (title ? '<h1>' + esc(title) + '</h1>' : '') + '\n  ' + (b || '<p></p>') + '\n</body></html>'; }
+  function capacityFrom(claims, vouchesTo) { var since = claims.length ? Math.min.apply(null, claims.map(function (c) { return c.created_at; })) : Date.now() / 1000; var months = Math.max(0, (Date.now() / 1000 - since) / (30 * 86400)); return Math.max(1, Math.floor(1 + Math.min(12, Math.floor(months)) * 0.5 + vouchesTo)); }
+
+  async function load() {
+    try { PK = (await noet.me()).pubkey; } catch (e) { PK = null; }
+    if (!PK) { $('#app').innerHTML = '<div class="card">' + esc(T('noKey')) + ' <div style="margin-top:.8rem"><button class="pri" id="rl">' + esc(T('refresh')) + '</button></div></div>'; $('#rl').onclick = function () { location.reload(); }; return; }
+    var evs = await noet.query([{ kinds: [31111], authors: [PK], limit: 50 }, { kinds: [0], authors: [PK], limit: 1 }, { kinds: [5], authors: [PK], limit: 200 }, { kinds: [8001, 8002], '#p': [PK], limit: 500 }, { kinds: [31002], authors: [PK], limit: 300 }]);
+    var del = {}; evs.filter(function (e) { return e.kind === 5; }).forEach(function (e) { (e.tags || []).forEach(function (t) { if (t[0] === 'e') del[t[1]] = 1; }); });
+    var live = evs.filter(function (e) { return e.kind === 31111 && /\.(me|nt)$/i.test(tagv(e, 'd')) && !isTest(tagv(e, 'd')) && !del[e.id]; });
+    var best = {}; live.forEach(function (c) { var n = tagv(c, 'd'); if (!best[n] || c.created_at < best[n].created_at) best[n] = c; });
+    DOMAINS = Object.keys(best).map(function (n) { return best[n]; }).sort(function (a, b) { return a.created_at - b.created_at; });
+    var p0 = evs.find(function (e) { return e.kind === 0; }); try { PROFILE = p0 ? JSON.parse(p0.content) : {}; } catch (e) { PROFILE = {}; }
+    LANG = PROFILE.lang === 'en' ? 'en' : 'ru'; document.documentElement.lang = LANG;
+    var vlast = {}; evs.filter(function (e) { return e.kind === 8001 || e.kind === 8002; }).forEach(function (v) { if (!vlast[v.pubkey] || v.created_at >= vlast[v.pubkey].created_at) vlast[v.pubkey] = v; });
+    CAP = capacityFrom(DOMAINS, Object.keys(vlast).filter(function (f) { return vlast[f].kind === 8001; }).length);
+    var names = DOMAINS.map(function (c) { return tagv(c, 'd'); });
+    PRIMARY = (PROFILE.primary && names.indexOf(PROFILE.primary) >= 0) ? PROFILE.primary : (names[0] || null);
+    PAGES = {}; var subBest = {};
+    evs.filter(function (e) { return e.kind === 31002 && !del[e.id]; }).forEach(function (e) { var d = tagv(e, 'd'); if (!d) return; var c = {}; try { c = JSON.parse(e.content); } catch (x) {} if (!PAGES[d] || PAGES[d]._ts < e.created_at) PAGES[d] = { html: c.html || '', _ts: e.created_at, id: e.id };
+      if (d.split('.').length > 2 && names.indexOf(baseOfName(d)) >= 0) { if (!subBest[d] || subBest[d]._ts < e.created_at) subBest[d] = { name: d, id: e.id, _ts: e.created_at }; } });
+    SUBS = Object.keys(subBest).map(function (d) { return subBest[d]; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    view();
+  }
+
+  function row(name, isSub) {
+    var isP = name === PRIMARY;
+    var a = '<div class="acts">';
+    if (!isSub && !isP && DOMAINS.length > 1) a += '<button data-mkp="' + esc(name) + '">' + esc(T('makePrimary')) + '</button>';
+    a += '<button data-open="' + esc(name) + '">' + esc(T('open')) + '</button>';
+    a += '<button data-edit="' + esc(name) + '">' + esc(T('page')) + '</button>';
+    a += '<button class="danger" data-rel="' + esc(name) + '">' + esc(T('release')) + '</button></div>';
+    return '<div class="drow"><span class="nm' + (isSub ? ' sub' : '') + '">' + esc(name) + '</span>' + (isP ? '<span class="badge">' + esc(T('primary')) + '</span>' : '') + a + '</div>';
+  }
+
+  function view() {
+    var canReg = DOMAINS.length < CAP;
+    var capFull = DOMAINS.length >= CAP;
+    $('#app').innerHTML =
+      '<div class="head"><h1>' + esc(T('title')) + '</h1><span class="cap' + (capFull ? ' full' : '') + '">' + esc(T('capacity')) + ' <b>' + DOMAINS.length + ' / ' + CAP + '</b></span></div>' +
+      '<div class="cols">' +
+        '<div class="card">' + (DOMAINS.length ? DOMAINS.map(function (c) { return row(tagv(c, 'd'), false); }).join('') : '<div class="empty">' + esc(T('noDomains')) + '</div>') + '</div>' +
+        '<div class="card"><h2>' + esc(T('newName')) + '</h2><div class="field"><input id="reg" placeholder="' + esc(T('namePh')) + '" ' + (canReg ? '' : 'disabled') + '><button class="pri" id="regbtn" ' + (canReg ? '' : 'disabled') + '>' + esc(T('register')) + '</button></div>' +
+          (capFull ? '<div class="note">' + T('full') + '</div>' : '') + '<div class="msg" id="regmsg"></div></div>' +
+      '</div>' +
+      '<div class="card sub" style="margin-top:1.1rem"><h2>' + esc(T('subdomains')) + '</h2>' +
+        '<div class="screate"><input id="sublabel" placeholder="' + esc(T('subPh')) + '"><span class="dot">.</span><span class="sel"><select id="subbase">' + DOMAINS.map(function (c) { var n = tagv(c, 'd'); return '<option>' + esc(n) + '</option>'; }).join('') + '</select></span><button class="pri" id="subbtn" ' + (DOMAINS.length ? '' : 'disabled') + '>' + esc(T('create')) + '</button></div>' +
+        '<div class="msg" id="submsg"></div>' +
+        (SUBS.length ? SUBS.map(function (s) { return row(s.name, true); }).join('') : '<div class="empty">' + esc(T('noSubs')) + '</div>') +
+      '</div>';
+    wire();
+  }
+
+  function wire() {
+    var rb = $('#regbtn'); if (rb) rb.onclick = function () { register($('#reg').value, $('#regmsg')); };
+    var ri = $('#reg'); if (ri) ri.addEventListener('keydown', function (e) { if (e.key === 'Enter') register(ri.value, $('#regmsg')); });
+    var sb = $('#subbtn'); if (sb) sb.onclick = function () { createSub($('#subbase').value, $('#sublabel').value, $('#submsg')); };
+    var sl = $('#sublabel'); if (sl) sl.addEventListener('keydown', function (e) { if (e.key === 'Enter') createSub($('#subbase').value, sl.value, $('#submsg')); });
+    document.querySelectorAll('[data-open]').forEach(function (b) { b.onclick = function () { noet.go('http://' + b.dataset.open + '/'); }; });
+    document.querySelectorAll('[data-mkp]').forEach(function (b) { b.onclick = function () { setPrimary(b.dataset.mkp); }; });
+    document.querySelectorAll('[data-edit]').forEach(function (b) { b.onclick = function () { editName(b.dataset.edit); }; });
+    document.querySelectorAll('[data-rel]').forEach(function (b) { b.onclick = function () { release(b.dataset.rel); }; });
+    document.querySelectorAll('a[data-go]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); noet.go('http://' + a.dataset.go + '/'); }; });
+  }
+
+  async function pub(p) { var x = Object.assign({}, PROFILE, p); await noet.publish({ kind: 0, tags: [], content: JSON.stringify(x) }); PROFILE = x; }
+  async function setPrimary(name) { try { await pub({ primary: name }); } catch (e) {} await load(); }
+
+  async function register(input, m) {
+    var h = (input || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); if (!h) { m.className = 'msg err'; m.textContent = T('enter'); return; }
+    if (DOMAINS.length >= CAP) return; var name = h + '.me'; m.className = 'msg'; m.textContent = T('working');
+    try {
+      var taken = (await noet.query({ kinds: [31111], '#d': [name], limit: 5 })).filter(function (e) { return e.pubkey !== PK; });
+      if (taken.length) { m.className = 'msg err'; m.textContent = T('taken'); return; }
+      await noet.publish({ kind: 31111, tags: [['d', name], ['t', 'noet-name'], ['target', '']] });
+      await noet.publish({ kind: 31002, tags: [['d', name]], content: JSON.stringify({ html: pageFromText(PROFILE.name || h, T('myPageBody')), title: PROFILE.name || h, mode: 'html' }) });
+      await load();
+    } catch (e) { m.className = 'msg err'; m.textContent = T('failed'); }
+  }
+  async function createSub(base, label, m) {
+    var lab = (label || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); if (!lab || !base) { m.className = 'msg err'; m.textContent = T('enter'); return; }
+    var name = lab + '.' + base; if (SUBS.some(function (s) { return s.name === name; })) { m.className = 'msg err'; m.textContent = T('subExists'); return; }
+    m.className = 'msg'; m.textContent = T('working');
+    try { await noet.publish({ kind: 31002, tags: [['d', name]], content: JSON.stringify({ html: pageFromText(lab, T('myPageBody')), title: lab, mode: 'html' }) }); await load(); }
+    catch (e) { m.className = 'msg err'; m.textContent = T('failed'); }
+  }
+  async function release(name) {
+    var isSub = name.split('.').length > 2;
+    try {
+      if (isSub) { var s = SUBS.find(function (x) { return x.name === name; }); if (s) await noet.publish({ kind: 5, tags: [['e', s.id]] }); }
+      else { var c = DOMAINS.find(function (x) { return tagv(x, 'd') === name; }); if (c) await noet.publish({ kind: 5, tags: [['e', c.id]] }); if (PROFILE.primary === name) { try { await pub({ primary: '' }); } catch (e) {} } }
+      await load();
+    } catch (e) {}
+  }
+
+  function editName(name) { ED = name; var html = (PAGES[name] || {}).html || ''; mode = html ? 'html' : 'text'; edHtml = html; edTitle = ''; edBody = ''; editor(); }
+  function editor() {
+    var isHtml = mode === 'html';
+    $('#app').innerHTML = '<div class="ebar"><button class="gho" id="back">' + esc(T('back')) + '</button><span class="mut">' + esc(ED) + '</span><span class="sp"></span><div class="seg"><button id="mt" class="' + (isHtml ? '' : 'on') + '">' + esc(T('mText')) + '</button><button id="mh" class="' + (isHtml ? 'on' : '') + '">' + esc(T('mHtml')) + '</button></div><button class="pri" id="pub">' + esc(T('publish')) + '</button></div>' +
+      '<div class="card">' + (isHtml ? '<textarea id="code" class="code" spellcheck="false" placeholder="&lt;!doctype html&gt;…">' + esc(edHtml) + '</textarea>' : '<input id="title" value="' + esc(edTitle) + '" placeholder="' + esc(T('titlePh')) + '" style="margin-bottom:.7rem"><textarea id="body" placeholder="' + esc(T('bodyPh')) + '">' + esc(edBody) + '</textarea>') + '<div class="msg" id="emsg"></div></div>';
+    var save = function () { if ($('#code')) edHtml = $('#code').value; if ($('#title')) edTitle = $('#title').value; if ($('#body')) edBody = $('#body').value; };
+    $('#back').onclick = function () { view(); }; $('#mt').onclick = function () { save(); mode = 'text'; editor(); }; $('#mh').onclick = function () { save(); mode = 'html'; editor(); };
+    $('#pub').onclick = async function () { save(); var m = $('#emsg'), html, title;
+      if (mode === 'html') { html = (edHtml || '').trim(); if (!html) { m.className = 'msg err'; m.textContent = T('empty'); return; } var tm = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i); title = (tm ? tm[1] : '') || ED; }
+      else { title = (edTitle || '').trim(); if (!title && !(edBody || '').trim()) { m.className = 'msg err'; m.textContent = T('empty'); return; } html = pageFromText(title, edBody); }
+      m.className = 'msg'; m.textContent = T('publishing'); $('#pub').disabled = true;
+      try { await noet.publish({ kind: 31002, tags: [['d', ED]], content: JSON.stringify({ html: html, title: title, mode: 'html' }) }); PAGES[ED] = { html: html, _ts: Date.now() / 1000 };
+        m.className = 'msg ok'; m.innerHTML = esc(T('done', { n: ED })).replace(esc(ED), '<a href="http://' + esc(ED) + '/" target="_blank">' + esc(ED) + '</a>'); }
+      catch (e) { m.className = 'msg err'; m.textContent = T('failed'); } $('#pub').disabled = false; };
+  }
+
+  if (!window.noet) { $('#app').innerHTML = '<div class="mut">Открой через расширение noet.</div>'; return; }
+  load();
+})();
+</script></body></html>

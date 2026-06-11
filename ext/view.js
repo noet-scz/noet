@@ -238,7 +238,8 @@ async function main() {
   // Служебные страницы (дом/профиль/люди/лента/разработчикам) тянутся СНАРУЖИ (с Pages)
   // и рисуются в sandbox с мостом window.noet/nostr. Расширение заморожено: правки UI
   // идут без переустановки. Вшитая копия — только запасной путь, если Pages недоступны.
-  const APP_PAGES = { 'noet.nt': 'home', 'search.nt': 'home', 'id.nt': 'profile', 'people.nt': 'people', 'dev.nt': 'dev', 'relay.nt': 'feed' };
+  const APP_PAGES = { 'noet.nt': 'home', 'search.nt': 'home', 'id.nt': 'profile', 'people.nt': 'people', 'dev.nt': 'dev', 'relay.nt': 'feed', 'domains.nt': 'domains' };
+  const BUNDLED = { home: 'home', profile: 'app', people: 'people', feed: 'feed', dev: 'dev' };   // офлайн-запас есть не у всех
   if (APP_PAGES[host]) {
     setName(host);
     showMsg('<div class="spin"></div><div>Открываю…</div>');
@@ -248,7 +249,8 @@ async function main() {
       const r = await fetch(uiBase + page + '.html', { cache: 'no-cache', signal: AbortSignal.timeout(8000) });
       if (r.ok) { const html = await r.text(); if (/<[a-z!/]/i.test(html)) { renderDoc(html, uiBase); return; } }
     } catch { /* запасной путь ниже */ }
-    location.href = api.runtime.getURL((page === 'profile' ? 'app' : page) + '.html');   // вшитый запас
+    if (BUNDLED[page]) location.href = api.runtime.getURL(BUNDLED[page] + '.html');   // вшитый запас
+    else showMsg('<h2>noet</h2><div>Не удалось загрузить. Обнови страницу.</div>');
     return;
   }
 

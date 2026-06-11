@@ -15,7 +15,8 @@
     "id.nt": "/id",
     "relay.nt": "/relay",
     "people.nt": "/people",
-    "dev.nt": "/dev"
+    "dev.nt": "/dev",
+    "domains.nt": "/domains"
   },
   "relays": [
     "wss://relay.damus.io",
