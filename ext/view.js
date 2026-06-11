@@ -192,8 +192,6 @@ async function main() {
   const cfg = await loadConfig();
   if (Array.isArray(cfg.relays) && cfg.relays.length) RELAYS = cfg.relays;
   const { host, path } = parseTarget(originalUrl());
-  const regBase = (cfg.registry || '').replace(/\/$/, '');
-  $('#home').addEventListener('click', (e) => { e.preventDefault(); location.href = regBase + '/'; });
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
