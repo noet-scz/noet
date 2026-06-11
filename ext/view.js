@@ -217,8 +217,8 @@ async function main() {
   if (Array.isArray(cfg.relays) && cfg.relays.length) RELAYS = cfg.relays;
   const { host, path } = parseTarget(originalUrl());
 
+  setupBar(host || '');   // навигация и личность живут в верхней полосе, общей для всех страниц
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
-  setupBar(host);   // навигация и личность живут в верхней полосе, общей для всех страниц
 
   // Служебные страницы (дом/профиль/люди/лента/разработчикам) тянутся СНАРУЖИ (с Pages)
   // и рисуются в sandbox с мостом window.noet/nostr. Расширение заморожено: правки UI
