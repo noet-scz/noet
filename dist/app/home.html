@@ -17,6 +17,7 @@
   .r{display:flex;align-items:center;gap:.7rem;padding:.6rem .8rem;border-radius:12px;cursor:pointer}
   .r:hover{background:var(--panel2)}.r .av{width:34px;height:34px;border-radius:50%;flex:0 0 34px}
   .r .dn{font-weight:600}.r .h{color:var(--mut);font-size:.85rem;margin-left:.4rem}
+  .r .sn{color:var(--mut);font-size:.82rem;margin-top:.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .empty{color:var(--mut);text-align:center;margin-top:1.4rem;font-size:.9rem}
   .quick{margin-top:1.6rem;display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center}
   .quick a{font-size:.9rem;color:var(--mut);background:var(--panel2);border:1px solid var(--bd);border-radius:999px;padding:.4rem 1rem;cursor:pointer;text-decoration:none}.quick a:hover{border-color:var(--acc);color:var(--fg)}
@@ -41,39 +42,64 @@
   function genAv(pk, nm) { var h = 0, s = pk || nm || '?'; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (nm || '').trim() ? nm.trim()[0].toUpperCase() : ''; return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text></svg>"); }
   document.querySelectorAll('[data-go]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); go(a.dataset.go); }; });
 
-  var INDEX = null;   // [{name, handle, dn, pk, pic}]
+  var stripHtml = function (h) { return String(h || '').replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim(); };
+  var INDEX = null;   // [{name, handle, dn, about, title, text, pk, pic}] — поиск по СОДЕРЖАНИЮ
   async function buildIndex() {
     if (INDEX) return INDEX;
-    var evs = window.noet ? await noet.query([{ kinds: [31111], '#t': ['noet-name'], limit: 1000 }, { kinds: [0], limit: 1000 }, { kinds: [5], limit: 1000 }]) : [];
+    var evs = window.noet ? await noet.query([{ kinds: [31111], '#t': ['noet-name'], limit: 1000 }, { kinds: [0], limit: 1000 }, { kinds: [31002], limit: 1000 }, { kinds: [5], limit: 1000 }]) : [];
     var prof = {}; evs.filter(function (e) { return e.kind === 0; }).forEach(function (e) { if (!prof[e.pubkey] || e.created_at > (prof[e.pubkey]._ts || 0)) { try { var p = JSON.parse(e.content); p._ts = e.created_at; prof[e.pubkey] = p; } catch (x) {} } });
     var del = {}; evs.filter(function (e) { return e.kind === 5; }).forEach(function (e) { (e.tags || []).forEach(function (t) { if (t[0] === 'e') (del[e.pubkey] = del[e.pubkey] || {})[t[1]] = 1; }); });
-    var seen = {}; INDEX = [];
-    evs.filter(function (e) { return e.kind === 31111 && /\.(me|nt)$/i.test(tagv(e, 'd')) && !isTest(tagv(e, 'd')) && !(del[e.pubkey] && del[e.pubkey][e.id]); }).forEach(function (c) { var n = tagv(c, 'd'); if (seen[n]) return; seen[n] = 1; var p = prof[c.pubkey] || {}; INDEX.push({ name: n, handle: hf(n), dn: p.name || hf(n), pk: c.pubkey, pic: p.picture }); });
+    var owner = {}, seen = {}; INDEX = [];
+    evs.filter(function (e) { return e.kind === 31111 && /\.(me|nt)$/i.test(tagv(e, 'd')) && !isTest(tagv(e, 'd')) && !(del[e.pubkey] && del[e.pubkey][e.id]); })
+      .forEach(function (c) { var n = tagv(c, 'd'); if (!owner[n] || c.created_at < owner[n].ts) owner[n] = { pk: c.pubkey, ts: c.created_at }; });
+    // содержимое страниц (31002) владельца имени
+    var pageBy = {};
+    evs.filter(function (e) { return e.kind === 31002; }).forEach(function (e) { var n = tagv(e, 'd'); if (!n || !owner[n] || e.pubkey !== owner[n].pk) return; if (pageBy[n] && pageBy[n]._ts > e.created_at) return; var c = {}; try { c = JSON.parse(e.content); } catch (x) {} pageBy[n] = { title: c.title || '', text: c.html ? stripHtml(c.html).slice(0, 1500) : '', _ts: e.created_at }; });
+    Object.keys(owner).forEach(function (n) { if (seen[n]) return; seen[n] = 1; var p = prof[owner[n].pk] || {}, pg = pageBy[n] || {}; INDEX.push({ name: n, handle: hf(n), dn: p.name || hf(n), about: p.about || '', title: pg.title || '', text: pg.text || '', pk: owner[n].pk, pic: p.picture }); });
     return INDEX;
   }
-  function results(items) {
-    $('#res').innerHTML = items.length ? items.slice(0, 12).map(function (m) {
-      return '<div class="r" data-name="' + esc(m.name) + '"><img class="av" src="' + esc(/^(https?:|data:)/i.test(m.pic || '') ? m.pic : genAv(m.pk, m.dn)) + '"><div><span class="dn">' + esc(m.dn) + '</span><span class="h">' + esc(m.name) + '</span></div></div>';
+  function snippet(m, q) {
+    var hay = m.text || '', i = hay.toLowerCase().indexOf(q);
+    if (i >= 0) { var s = Math.max(0, i - 30), seg = (s > 0 ? '…' : '') + hay.slice(s, i + q.length + 50).trim() + '…'; return esc(seg); }
+    if (m.title && m.title.toLowerCase().indexOf(q) >= 0) return esc(m.title);
+    if (m.about && m.about.toLowerCase().indexOf(q) >= 0) return esc(m.about);
+    return m.title ? esc(m.title) : '';
+  }
+  function results(items, q) {
+    $('#res').innerHTML = items.length ? items.slice(0, 15).map(function (m) {
+      var sn = snippet(m, q);
+      return '<div class="r" data-name="' + esc(m.name) + '"><img class="av" src="' + esc(/^(https?:|data:)/i.test(m.pic || '') ? m.pic : genAv(m.pk, m.dn)) + '"><div style="min-width:0"><div><span class="dn">' + esc(m.dn) + '</span><span class="h">' + esc(m.name) + '</span></div>' + (sn ? '<div class="sn">' + sn + '</div>' : '') + '</div></div>';
     }).join('') : '';
     document.querySelectorAll('.r').forEach(function (r) { r.onclick = function () { go(r.dataset.name); }; });
+  }
+  function score(m, q) {
+    if (m.handle === q) return 100;
+    if (m.handle.indexOf(q) === 0) return 85;
+    if (m.handle.indexOf(q) >= 0) return 70;
+    if ((m.dn || '').toLowerCase().indexOf(q) >= 0) return 55;
+    if ((m.title || '').toLowerCase().indexOf(q) >= 0) return 45;
+    if ((m.about || '').toLowerCase().indexOf(q) >= 0) return 30;
+    if ((m.text || '').toLowerCase().indexOf(q) >= 0) return 18;
+    return 0;
   }
   async function search(q) {
     q = (q || '').trim().toLowerCase();
     if (!q) { $('#res').innerHTML = ''; return; }
+    if (!window.noet) { $('#res').innerHTML = '<div class="empty">Открой через расширение noet, чтобы искать.</div>'; return; }
+    $('#res').innerHTML = '<div class="empty">ищу…</div>';
     var idx = await buildIndex();
-    var hit = idx.filter(function (m) { return m.handle.toLowerCase().indexOf(q) >= 0 || (m.dn || '').toLowerCase().indexOf(q) >= 0; })
-      .sort(function (a, b) { return (a.handle === q ? -2 : a.handle.indexOf(q)) - (b.handle === q ? -2 : b.handle.indexOf(q)); });
-    if (!hit.length) { $('#res').innerHTML = '<div class="empty">Ничего не нашлось. Нажми «искать», чтобы открыть «' + esc(q) + '».</div>'; return; }
-    results(hit);
+    var hit = idx.map(function (m) { return { m: m, s: score(m, q) }; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).map(function (x) { return x.m; });
+    if (!hit.length) { $('#res').innerHTML = '<div class="empty">Ничего не нашлось по «' + esc(q) + '».</div>'; return; }
+    results(hit, q);
   }
   var deb; $('#q').addEventListener('input', function () { clearTimeout(deb); deb = setTimeout(function () { search($('#q').value); }, 250); });
   $('#f').addEventListener('submit', async function (e) {
-    e.preventDefault(); var v = ($('#q').value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (!v) return;
+    e.preventDefault(); var raw = ($('#q').value || '').trim(); if (!raw) return;
+    var v = raw.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     var idx = await buildIndex();
-    var exact = idx.find(function (m) { return m.handle === v || m.name === v; });
-    if (exact) return go(exact.name);
-    if (!/\.(nt|me)$/.test(v)) v += '.me'; go(v);   // прямой переход по имени
+    var exact = idx.find(function (m) { return m.name === v || m.handle === v; });
+    if (exact) return go(exact.name);   // существующее имя — открыть; иначе ищем по содержанию, без перехода
+    search(raw);
   });
 })();
 </script></body></html>

@@ -54,21 +54,23 @@ function setupBar(host) {
   $('#brand').onclick = () => { location.href = 'http://noet.nt/'; };
   document.querySelectorAll('#nav a').forEach((a) => { if (a.dataset.h === host) a.classList.add('on'); a.onclick = (e) => { e.preventDefault(); location.href = 'http://' + a.dataset.h + '/'; }; });
   $('#chip').onclick = () => { location.href = 'http://id.nt/'; };
-  $('#collapse').onclick = () => { $('#bar').classList.add('hide'); $('#reopen').style.display = 'flex'; };
+  $('#collapse').onclick = () => { $('#bar').classList.add('hide'); $('#reopen').style.display = 'block'; };
   $('#reopen').onclick = () => { $('#bar').classList.remove('hide'); $('#reopen').style.display = 'none'; };
   renderChip();
 }
+function showChip(dn, av) { const c = $('#chip'); c.innerHTML = '<img src="' + esch(av) + '"><span class="nm">' + esch(dn) + '</span>'; c.style.display = 'inline-flex'; }
 async function renderChip() {
+  let pk; try { pk = await getPub(); } catch { return; }   // нет ключа — нет чипа (гость)
+  showChip('я', genAv(pk, 'я'));   // показываем сразу, как только есть ключ; ниже уточняем профилем
   try {
-    const pk = await getPub();
     const evs = await relayQuery([{ kinds: [0], authors: [pk], limit: 1 }, { kinds: [31111], authors: [pk], limit: 20 }]);
     let prof = {}; const p0 = evs.find((e) => e.kind === 0); try { prof = p0 ? JSON.parse(p0.content) : {}; } catch {}
     const claims = evs.filter((e) => e.kind === 31111 && /\.(me|nt)$/i.test(((e.tags.find((t) => t[0] === 'd') || [])[1]) || '')).sort((a, b) => b.created_at - a.created_at);
     const name = claims[0] ? (claims[0].tags.find((t) => t[0] === 'd') || [])[1] : '';
     const dn = prof.name || name.replace(/\.(me|nt)$/i, '') || 'я';
     const av = prof.picture && /^(https?:|data:)/i.test(prof.picture) ? prof.picture : genAv(pk, dn);
-    const chip = $('#chip'); chip.innerHTML = '<img src="' + esch(av) + '"><span class="nm">' + esch(dn) + '</span>'; chip.style.display = 'inline-flex';
-  } catch { /* нет ключа — без чипа */ }
+    showChip(dn, av);
+  } catch { /* профиль не подгрузился — остаётся базовый чип */ }
 }
 
 // ---- мост window.noet / window.nostr для контента в sandbox-рендере ----
