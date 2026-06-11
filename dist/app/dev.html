@@ -3,57 +3,139 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Для разработчиков · noet</title>
 <style>
-  :root{--bg:#0a0a0d;--panel2:#16161f;--bd:#24242e;--bd2:#2f2f3a;--fg:#f1f1f5;--mut:#9595a3;--acc:#7c5cff;--acc2:#9d8bff}
+  :root{--bg:#0a0a0d;--panel2:#16161f;--bd:#24242e;--bd2:#2f2f3a;--fg:#f1f1f5;--mut:#9595a3;--acc:#7c5cff;--acc2:#9d8bff;--ok:#3ddc97}
   *{box-sizing:border-box}body{margin:0;background:radial-gradient(120% 75% at 50% -12%,#16121f 0%,transparent 58%) fixed,var(--bg);color:var(--fg);font:15px/1.6 -apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:44rem;margin:0 auto;padding:2.2rem 1.2rem 5rem}
-  .top{display:flex;align-items:center;gap:.55rem}.top img{width:28px;height:28px}.top b{font-size:1.05rem}
-  .nav{display:flex;flex-wrap:wrap;gap:.3rem;margin:.7rem 0 1.4rem}
-  .nav a{color:var(--mut);font-size:.86rem;padding:.32rem .7rem;border-radius:999px;border:1px solid transparent;cursor:pointer}
-  .nav a:hover{color:var(--fg);border-color:var(--bd2)}.nav a.on{color:var(--fg);background:var(--panel2);border-color:var(--bd2)}
-  h1{font-size:1.7rem;letter-spacing:-.3px;margin:.3rem 0 .2em}.lead{color:var(--mut);margin:0 0 1.4rem}
-  h2{font-size:1.15rem;margin:2rem 0 .6rem;border-left:3px solid var(--acc);padding-left:.6rem}h3{color:var(--acc2);font-size:1rem;margin:1.3rem 0 .4rem}
-  p,li{color:#c3c3cd}pre{background:#0c0c12;border:1px solid var(--bd);border-radius:12px;padding:.9rem 1rem;overflow:auto;font:13px/1.55 ui-monospace,monospace;color:#d8d8e2}
+  .wrap{max-width:46rem;margin:0 auto;padding:1.6rem 1.2rem 5rem}
+  .lead{color:var(--mut);margin:0 0 1.4rem}
+  h1{font-size:1.7rem;letter-spacing:-.3px;margin:.3rem 0 .2em}
+  h2{font-size:1.2rem;margin:2.2rem 0 .6rem;border-left:3px solid var(--acc);padding-left:.6rem}
+  h3{color:var(--fg);font-size:1rem;margin:1.4rem 0 .4rem}
+  p,li{color:#c8c8d2}ol,ul{padding-left:1.2rem}li{margin:.25rem 0}
+  .codeblock{position:relative;margin:.6rem 0}
+  pre{background:#0c0c12;border:1px solid var(--bd);border-radius:12px;padding:.9rem 1rem;overflow:auto;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#d8d8e2;margin:0}
   code{background:#0c0c12;border:1px solid var(--bd);border-radius:6px;padding:.06em .4em;font-size:.86em}pre code{background:0;border:0;padding:0}
-  table{border-collapse:collapse;width:100%;font-size:.9rem}td,th{border-bottom:1px solid #1b1b24;padding:.45rem .5rem;text-align:left;color:#c3c3cd}th{color:var(--mut);font-weight:500}
-  a{color:var(--acc2)}
+  .copy{position:absolute;top:.5rem;right:.5rem;display:flex;align-items:center;gap:.3rem;background:#1b1b24;border:1px solid var(--bd2);color:var(--mut);border-radius:8px;padding:.25rem .5rem;font:inherit;font-size:.76rem;cursor:pointer;opacity:.65;transition:.12s}
+  .copy:hover{opacity:1;color:var(--fg);border-color:var(--acc)}.copy.done{color:var(--ok);border-color:var(--ok)}.copy svg{width:13px;height:13px}
+  table{border-collapse:collapse;width:100%;font-size:.92rem;margin-top:.4rem}td,th{border-bottom:1px solid #1b1b24;padding:.5rem .5rem;text-align:left;color:#c8c8d2}th{color:var(--mut);font-weight:500}
+  a{color:var(--acc2)}.note{color:var(--mut);font-size:.9rem}
+  .os{display:inline-block;font-size:.72rem;color:var(--mut);border:1px solid var(--bd2);border-radius:999px;padding:.05rem .5rem;margin-bottom:.3rem}
+  .topbar{display:flex;justify-content:flex-end;margin-bottom:.4rem}
+  .langseg{display:inline-flex;border:1px solid var(--bd2);border-radius:9px;overflow:hidden;font-size:.82rem}.langseg button{background:0;color:var(--mut);border:0;padding:.25rem .7rem;cursor:pointer}.langseg button.on{background:var(--acc);color:#fff}
 </style></head>
 <body><div class="wrap">
-  <h1>Для разработчиков</h1>
-  <p class="lead">Собери своё на noet: страницы, форумы, доски, вики. Сервер не нужен.</p>
-  <h2>Конструктор: пять примитивов</h2>
-  <p>На каждой странице noet доступен <code>window.noet</code>. Из пяти примитивов собирается что угодно, без правок ядра. Данные это подписанные события, живут в сети.</p>
-  <h3>Identity</h3><pre><code>const me = await noet.identity.me();
-const profile = await noet.identity.get(pubkey);</code></pre>
-  <h3>Space</h3><pre><code>const s = await noet.space.create({ type: "forum", title: "Мой форум" });</code></pre>
-  <h3>Artifact</h3><pre><code>await noet.artifact.publish({ space, content: "пост" });
-const feed = await noet.artifact.query({ space });</code></pre>
-  <h3>Relation</h3><pre><code>await noet.relation.add({ type: "reply", to: postId, toAuthor: pk, content: "ответ" });</code></pre>
-  <h3>Policy</h3><pre><code>await noet.policy.set(space, { post: { minRep: 3 } });</code></pre>
-  <h2>Готовые шаблоны</h2>
-  <table><tr><th>Шаблон</th><th>Исходник</th></tr>
-    <tr><td>Гостевая книга</td><td><a href="https://noet-scz.github.io/noet/sites/guestbook/" target="_blank">открыть</a></td></tr>
-    <tr><td>Форум</td><td><a href="https://noet-scz.github.io/noet/sites/forum/" target="_blank">открыть</a></td></tr>
-    <tr><td>Блог</td><td><a href="https://noet-scz.github.io/noet/sites/blog/" target="_blank">открыть</a></td></tr>
-    <tr><td>Объявления</td><td><a href="https://noet-scz.github.io/noet/sites/market/" target="_blank">открыть</a></td></tr>
-    <tr><td>Вики</td><td><a href="https://noet-scz.github.io/noet/sites/wiki/" target="_blank">открыть</a></td></tr></table>
-
-  <h2>Залить целый проект (игра, форум, SPA)</h2>
-  <p>noet открывает не только одну html-страницу, но и собранный проект целиком: папку с <code>index.html</code> и ассетами (JS-бандлы, CSS, картинки). Папка кладётся в IPFS, а подписанный твоим ключом указатель публикуется на реле. Сервер не нужен, адрес принадлежит твоему ключу.</p>
-  <h3>Шаги</h3>
-  <ol>
-    <li>Собери проект как обычно: <code>npm run build</code> → получится папка, например <code>dist/</code> с <code>index.html</code> внутри.</li>
-    <li>Возьми себе имя в noet (на «Моей странице») — оно станет адресом проекта.</li>
-    <li>Залей одной командой (ключ берётся из переменной окружения или флага):</li>
-  </ol>
-  <pre><code>NOET_NSEC=&lt;твой ключ nsec/hex&gt; \
-  node tools/noet-publish.mjs --name alex.me --dir ./dist</code></pre>
-  <p>Для заливки папки нужен локальный IPFS-узел (kubo): запусти <code>ipfs daemon</code>. Нет узла — залей папку любым способом сам и передай готовый CID:</p>
-  <pre><code># получил CID на стороне (ipfs add -r, web3.storage, Pinata), затем:
-node tools/noet-publish.mjs --name alex.me --cid bafybei… --nsec &lt;ключ&gt;</code></pre>
-  <p>Открывай <code>http://alex.me/</code> в браузере с расширением noet — приложение работает, относительные пути (<code>./app.js</code>, <code>./assets/…</code>) грузятся сами. Обновление = повтори команду: новый CID, тот же адрес.</p>
-  <p class="mut" style="font-size:.9rem">Ключ это твоя личность из расширения (Настройки → бэкап даёт nsec). Под капотом: папка → CID директории в IPFS, событие <code>kind 31002</code> (<code>d</code> = имя, content <code>{cid}</code>), подпись schnorr, публикация на публичные реле. Утилита: <a href="https://github.com/noet-scz/noet/blob/main/tools/noet-publish.mjs" target="_blank">tools/noet-publish.mjs</a>, ноль зависимостей.</p>
-
-  <h2>Свой экземпляр</h2>
-  <p>Код открыт: <a href="https://github.com/noet-scz/noet" target="_blank">github.com/noet-scz/noet</a>.</p>
+  <div class="topbar"><span class="langseg"><button id="lru">Русский</button><button id="len">English</button></span></div>
+  <div id="doc"></div>
 </div>
-</body></html>
+<script>
+(function () {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
+  var go = function (h) { if (window.noet && noet.go) noet.go('http://' + h + '/'); else location.href = 'http://' + h + '/'; };
+  var LANG = 'ru';
+  var COPY = { ru: 'копировать', en: 'copy', done: { ru: 'готово', en: 'copied' } };
+  var icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>';
+
+  // блок кода с кнопкой «копировать»
+  function cb(code) { return '<div class="codeblock"><button class="copy">' + icon + '<span>' + COPY[LANG] + '</span></button><pre><code>' + esc(code) + '</code></pre></div>'; }
+  function link(host, label) { return '<a href="http://' + host + '/" data-go="' + host + '">' + esc(label) + '</a>'; }
+
+  function doc(L) {
+    if (L === 'en') return '' +
+      '<h1>For developers</h1>' +
+      '<p class="lead">Build on noet: pages, forums, boards, games, whole apps. Signed by your key, served from IPFS and public relays. No server of ours.</p>' +
+      '<h2>The toolkit: five primitives</h2>' +
+      '<p>Every noet page gets <code>window.noet</code>. Five primitives compose into anything, without touching the core. Data are signed events that live in the network.</p>' +
+      '<h3>Identity</h3>' + cb('const me = await noet.identity.me();\nconst profile = await noet.identity.get(pubkey);') +
+      '<h3>Space</h3>' + cb('const s = await noet.space.create({ type: "forum", title: "My forum" });') +
+      '<h3>Artifact</h3>' + cb('await noet.artifact.publish({ space, content: "post" });\nconst feed = await noet.artifact.query({ space });') +
+      '<h3>Relation</h3>' + cb('await noet.relation.add({ type: "reply", to: postId, toAuthor: pk, content: "reply" });') +
+      '<h3>Policy</h3>' + cb('await noet.policy.set(space, { post: { minRep: 3 } });') +
+      '<h2>Publish a whole project (game, forum, SPA)</h2>' +
+      '<p>noet renders not just one HTML file but a built folder (an <code>index.html</code> with JS bundles, CSS, images). The folder goes to IPFS; a pointer signed by your key is published to relays. The same on Linux, macOS and Windows.</p>' +
+      '<h3>1. Prerequisites</h3>' +
+      '<ul><li><b>Node.js</b> 20+ (<a href="https://nodejs.org" target="_blank">nodejs.org</a>) — check: <code>node --version</code>.</li>' +
+      '<li><b>Your key.</b> Click the noet icon in the browser → backup → copy the nsec.</li>' +
+      '<li><b>A name.</b> Register one on ' + link('id.nt', 'My page') + ' — it becomes your project’s address.</li>' +
+      '<li><b>A way to put files on IPFS</b> (one of two, step 3).</li></ul>' +
+      '<h3>2. Get the tool</h3>' +
+      '<p>One file, zero dependencies. Either clone the repo, or download just that file:</p>' +
+      cb('git clone https://github.com/noet-scz/noet\ncd noet') +
+      '<p class="note">or just the file (curl works on Linux/macOS and on Windows PowerShell):</p>' +
+      cb('curl -O https://raw.githubusercontent.com/noet-scz/noet/main/tools/noet-publish.mjs') +
+      '<h3>3. Put the folder on IPFS</h3>' +
+      '<p><b>Option A — your own node (kubo).</b> Install IPFS (<a href="https://docs.ipfs.tech/install/ipfs-desktop/" target="_blank">ipfs desktop</a> or kubo), run it, then the tool uploads the folder for you:</p>' +
+      cb('ipfs daemon') +
+      '<p><b>Option B — no node.</b> Upload the folder anywhere that gives a CID (a pinning service like web3.storage / Pinata, or <code>ipfs add -r</code> elsewhere) and pass the CID with <code>--cid</code> (step 4).</p>' +
+      '<h3>4. Publish</h3>' +
+      '<p class="os">Linux / macOS</p>' + cb('NOET_NSEC=<your nsec> node tools/noet-publish.mjs --name alex.me --dir ./dist') +
+      '<p class="os">Windows (PowerShell)</p>' + cb('$env:NOET_NSEC="<your nsec>"; node tools\\noet-publish.mjs --name alex.me --dir .\\dist') +
+      '<p class="note">No local node? add the CID instead of the folder:</p>' + cb('node tools/noet-publish.mjs --name alex.me --cid bafybei... --nsec <your nsec>') +
+      '<h3>5. Done</h3>' +
+      '<p>Open <code>http://alex.me/</code> in a browser with the noet extension. Relative paths (<code>./app.js</code>, <code>./assets/…</code>) load by themselves. To update: rebuild and run the same command — new CID, same address.</p>' +
+      '<p class="note">Under the hood: folder → directory CID in IPFS; a <code>kind 31002</code> event (<code>d</code> = name, content <code>{cid}</code>) signed with your key; published to public relays. The name is held by your key. Source: <a href="https://github.com/noet-scz/noet/blob/main/tools/noet-publish.mjs" target="_blank">tools/noet-publish.mjs</a>.</p>' +
+      '<h2>Ready-made templates</h2>' + tableHtml() +
+      '<h2>Run your own instance</h2>' +
+      '<p>The code is open: <a href="https://github.com/noet-scz/noet" target="_blank">github.com/noet-scz/noet</a>.</p>';
+
+    return '' +
+      '<h1>Для разработчиков</h1>' +
+      '<p class="lead">Собирай на noet: страницы, форумы, доски, игры, целые приложения. Подписано твоим ключом, отдаётся из IPFS и публичных реле. Нашего сервера нет.</p>' +
+      '<h2>Конструктор: пять примитивов</h2>' +
+      '<p>На каждой странице noet доступен <code>window.noet</code>. Из пяти примитивов собирается что угодно, без правок ядра. Данные это подписанные события, живут в сети.</p>' +
+      '<h3>Identity</h3>' + cb('const me = await noet.identity.me();\nconst profile = await noet.identity.get(pubkey);') +
+      '<h3>Space</h3>' + cb('const s = await noet.space.create({ type: "forum", title: "Мой форум" });') +
+      '<h3>Artifact</h3>' + cb('await noet.artifact.publish({ space, content: "пост" });\nconst feed = await noet.artifact.query({ space });') +
+      '<h3>Relation</h3>' + cb('await noet.relation.add({ type: "reply", to: postId, toAuthor: pk, content: "ответ" });') +
+      '<h3>Policy</h3>' + cb('await noet.policy.set(space, { post: { minRep: 3 } });') +
+      '<h2>Залить целый проект (игра, форум, SPA)</h2>' +
+      '<p>noet открывает не только один html-файл, но и собранную папку (<code>index.html</code> с JS-бандлами, CSS, картинками). Папка кладётся в IPFS, а подписанный твоим ключом указатель публикуется на реле. Одинаково на Linux, macOS и Windows.</p>' +
+      '<h3>1. Что нужно заранее</h3>' +
+      '<ul><li><b>Node.js</b> 20+ (<a href="https://nodejs.org" target="_blank">nodejs.org</a>), проверь: <code>node --version</code>.</li>' +
+      '<li><b>Твой ключ.</b> Нажми иконку noet в браузере → бэкап → скопируй nsec.</li>' +
+      '<li><b>Имя.</b> Зарегистрируй на странице ' + link('id.nt', 'Моя страница') + ' — оно станет адресом проекта.</li>' +
+      '<li><b>Способ положить файлы в IPFS</b> (один из двух, шаг 3).</li></ul>' +
+      '<h3>2. Возьми утилиту</h3>' +
+      '<p>Один файл, ноль зависимостей. Либо склонируй репозиторий, либо скачай только этот файл:</p>' +
+      cb('git clone https://github.com/noet-scz/noet\ncd noet') +
+      '<p class="note">или только файл (curl есть на Linux/macOS и в Windows PowerShell):</p>' +
+      cb('curl -O https://raw.githubusercontent.com/noet-scz/noet/main/tools/noet-publish.mjs') +
+      '<h3>3. Положи папку в IPFS</h3>' +
+      '<p><b>Вариант A — свой узел (kubo).</b> Поставь IPFS (<a href="https://docs.ipfs.tech/install/ipfs-desktop/" target="_blank">ipfs desktop</a> или kubo), запусти, и утилита зальёт папку сама:</p>' +
+      cb('ipfs daemon') +
+      '<p><b>Вариант B — без узла.</b> Залей папку где угодно, где дают CID (пиннинг web3.storage / Pinata, или <code>ipfs add -r</code> на другой машине) и передай CID через <code>--cid</code> (шаг 4).</p>' +
+      '<h3>4. Публикация</h3>' +
+      '<p class="os">Linux / macOS</p>' + cb('NOET_NSEC=<твой nsec> node tools/noet-publish.mjs --name alex.me --dir ./dist') +
+      '<p class="os">Windows (PowerShell)</p>' + cb('$env:NOET_NSEC="<твой nsec>"; node tools\\noet-publish.mjs --name alex.me --dir .\\dist') +
+      '<p class="note">Нет своего узла? передай CID вместо папки:</p>' + cb('node tools/noet-publish.mjs --name alex.me --cid bafybei... --nsec <твой nsec>') +
+      '<h3>5. Готово</h3>' +
+      '<p>Открой <code>http://alex.me/</code> в браузере с расширением noet. Относительные пути (<code>./app.js</code>, <code>./assets/…</code>) грузятся сами. Обновить: пересобери и повтори команду — новый CID, тот же адрес.</p>' +
+      '<p class="note">Под капотом: папка → CID директории в IPFS; событие <code>kind 31002</code> (<code>d</code> = имя, content <code>{cid}</code>), подписанное твоим ключом; публикация на публичные реле. Имя держит твой ключ. Исходник: <a href="https://github.com/noet-scz/noet/blob/main/tools/noet-publish.mjs" target="_blank">tools/noet-publish.mjs</a>.</p>' +
+      '<h2>Готовые шаблоны</h2>' + tableHtml() +
+      '<h2>Свой экземпляр</h2>' +
+      '<p>Код открыт: <a href="https://github.com/noet-scz/noet" target="_blank">github.com/noet-scz/noet</a>.</p>';
+  }
+  function tableHtml() {
+    var rows = [['Гостевая книга / Guestbook', 'guestbook'], ['Форум / Forum', 'forum'], ['Блог / Blog', 'blog'], ['Объявления / Market', 'market'], ['Вики / Wiki', 'wiki']];
+    return '<table><tr><th>' + (LANG === 'en' ? 'Template' : 'Шаблон') + '</th><th>' + (LANG === 'en' ? 'Source' : 'Исходник') + '</th></tr>' +
+      rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td><a href="https://noet-scz.github.io/noet/sites/' + r[1] + '/" target="_blank">' + (LANG === 'en' ? 'open' : 'открыть') + '</a></td></tr>'; }).join('') + '</table>';
+  }
+
+  function copyText(t, btn) {
+    var done = function () { var s = btn.querySelector('span'); btn.classList.add('done'); if (s) s.textContent = COPY.done[LANG]; setTimeout(function () { btn.classList.remove('done'); if (s) s.textContent = COPY[LANG]; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(done, function () { fallback(t, done); }); } else fallback(t, done);
+  }
+  function fallback(t, done) { try { var ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch (e) {} }
+
+  function render() {
+    document.getElementById('doc').innerHTML = doc(LANG);
+    document.documentElement.lang = LANG;
+    document.getElementById('lru').className = LANG === 'ru' ? 'on' : '';
+    document.getElementById('len').className = LANG === 'en' ? 'on' : '';
+    document.querySelectorAll('.copy').forEach(function (b) { b.onclick = function () { copyText(b.parentNode.querySelector('code').textContent, b); }; });
+    document.querySelectorAll('#doc a[data-go]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); go(a.dataset.go); }; });
+  }
+  document.getElementById('lru').onclick = function () { LANG = 'ru'; render(); };
+  document.getElementById('len').onclick = function () { LANG = 'en'; render(); };
+  // язык по профилю (если открыт через расширение и есть ключ)
+  (async function () { try { if (window.noet) { var pk = (await noet.me()).pubkey; var p = await noet.query({ kinds: [0], authors: [pk], limit: 1 }); var prof = p[0] ? JSON.parse(p[0].content) : {}; if (prof.lang === 'en') LANG = 'en'; } } catch (e) {} render(); })();
+})();
+</script></body></html>

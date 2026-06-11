@@ -39,6 +39,9 @@
   var hf = function (n) { return String(n).replace(/\.(me|nt)$/i, ''); };
   var isTest = function (n) { return /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n); };
   var go = function (h) { if (window.noet && noet.go) noet.go('http://' + h + '/'); else location.href = 'http://' + h + '/'; };
+  var LANG = 'ru';
+  var DICT = { ru: { ph: 'искать в noet', searching: 'ищу…', none: 'Ничего не нашлось по «{q}»', needExt: 'Открой через расширение noet, чтобы искать.' }, en: { ph: 'search noet', searching: 'searching…', none: 'Nothing found for “{q}”', needExt: 'Open via the noet extension to search.' } };
+  var T = function (k, q) { var s = (DICT[LANG] || DICT.ru)[k] || DICT.ru[k] || k; return q == null ? s : s.replace('{q}', q); };
   function genAv(pk, nm) { var h = 0, s = pk || nm || '?'; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (nm || '').trim() ? nm.trim()[0].toUpperCase() : ''; return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text></svg>"); }
   document.querySelectorAll('[data-go]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); go(a.dataset.go); }; });
 
@@ -85,11 +88,11 @@
   async function search(q) {
     q = (q || '').trim().toLowerCase();
     if (!q) { $('#res').innerHTML = ''; return; }
-    if (!window.noet) { $('#res').innerHTML = '<div class="empty">Открой через расширение noet, чтобы искать.</div>'; return; }
-    $('#res').innerHTML = '<div class="empty">ищу…</div>';
+    if (!window.noet) { $('#res').innerHTML = '<div class="empty">' + esc(T('needExt')) + '</div>'; return; }
+    $('#res').innerHTML = '<div class="empty">' + esc(T('searching')) + '</div>';
     var idx = await buildIndex();
     var hit = idx.map(function (m) { return { m: m, s: score(m, q) }; }).filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).map(function (x) { return x.m; });
-    if (!hit.length) { $('#res').innerHTML = '<div class="empty">Ничего не нашлось по «' + esc(q) + '».</div>'; return; }
+    if (!hit.length) { $('#res').innerHTML = '<div class="empty">' + esc(T('none', q)) + '</div>'; return; }
     results(hit, q);
   }
   var deb; $('#q').addEventListener('input', function () { clearTimeout(deb); deb = setTimeout(function () { search($('#q').value); }, 250); });
@@ -101,5 +104,7 @@
     if (exact) return go(exact.name);   // существующее имя — открыть; иначе ищем по содержанию, без перехода
     search(raw);
   });
+  // язык по профилю (синхронизируется с настройкой в «Моей странице»)
+  (async function () { try { if (window.noet) { var pk = (await noet.me()).pubkey; var p = await noet.query({ kinds: [0], authors: [pk], limit: 1 }); var prof = p[0] ? JSON.parse(p[0].content) : {}; if (prof.lang === 'en') { LANG = 'en'; document.documentElement.lang = 'en'; } } } catch (e) {} $('#q').placeholder = T('ph'); })();
 })();
 </script></body></html>

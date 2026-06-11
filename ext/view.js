@@ -59,12 +59,19 @@ function setupBar(host) {
   renderChip();
 }
 function showChip(dn, av) { const c = $('#chip'); c.innerHTML = '<img src="' + esch(av) + '"><span class="nm">' + esch(dn) + '</span>'; c.style.display = 'inline-flex'; }
+function applyNavLang(lang) {
+  const L = { 'people.nt': { ru: 'Люди', en: 'People' }, 'relay.nt': { ru: 'Лента', en: 'Feed' }, 'dev.nt': { ru: 'Разработчикам', en: 'Developers' } };
+  document.querySelectorAll('#nav a').forEach((a) => { const t = L[a.dataset.h]; if (t) a.textContent = t[lang] || t.ru; });
+  const b = $('#brand'); if (b) b.title = lang === 'en' ? 'Home' : 'Главная';
+  const c = $('#chip'); if (c) c.title = lang === 'en' ? 'My page' : 'Моя страница';
+}
 async function renderChip() {
   let pk; try { pk = await getPub(); } catch { return; }   // нет ключа — нет чипа (гость)
   showChip('я', genAv(pk, 'я'));   // показываем сразу, как только есть ключ; ниже уточняем профилем
   try {
     const evs = await relayQuery([{ kinds: [0], authors: [pk], limit: 1 }, { kinds: [31111], authors: [pk], limit: 20 }]);
     let prof = {}; const p0 = evs.find((e) => e.kind === 0); try { prof = p0 ? JSON.parse(p0.content) : {}; } catch {}
+    applyNavLang(prof.lang === 'en' ? 'en' : 'ru');
     const claims = evs.filter((e) => e.kind === 31111 && /\.(me|nt)$/i.test(((e.tags.find((t) => t[0] === 'd') || [])[1]) || '')).sort((a, b) => b.created_at - a.created_at);
     const name = claims[0] ? (claims[0].tags.find((t) => t[0] === 'd') || [])[1] : '';
     const dn = prof.name || name.replace(/\.(me|nt)$/i, '') || 'я';
