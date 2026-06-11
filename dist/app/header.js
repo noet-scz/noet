@@ -1,23 +1,3 @@
-<!doctype html>
-<html lang="ru" data-page="dev.nt"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Для разработчиков · noet</title>
-<style>
-  :root{--bg:#0a0a0d;--panel2:#16161f;--bd:#24242e;--bd2:#2f2f3a;--fg:#f1f1f5;--mut:#9595a3;--acc:#7c5cff;--acc2:#9d8bff}
-  *{box-sizing:border-box}body{margin:0;background:radial-gradient(120% 75% at 50% -12%,#16121f 0%,transparent 58%) fixed,var(--bg);color:var(--fg);font:15px/1.6 -apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:44rem;margin:0 auto;padding:2.2rem 1.2rem 5rem}
-  .top{display:flex;align-items:center;gap:.55rem}.top img{width:28px;height:28px}.top b{font-size:1.05rem}
-  .nav{display:flex;flex-wrap:wrap;gap:.3rem;margin:.7rem 0 1.4rem}
-  .nav a{color:var(--mut);font-size:.86rem;padding:.32rem .7rem;border-radius:999px;border:1px solid transparent;cursor:pointer}
-  .nav a:hover{color:var(--fg);border-color:var(--bd2)}.nav a.on{color:var(--fg);background:var(--panel2);border-color:var(--bd2)}
-  h1{font-size:1.7rem;letter-spacing:-.3px;margin:.3rem 0 .2em}.lead{color:var(--mut);margin:0 0 1.4rem}
-  h2{font-size:1.15rem;margin:2rem 0 .6rem;border-left:3px solid var(--acc);padding-left:.6rem}h3{color:var(--acc2);font-size:1rem;margin:1.3rem 0 .4rem}
-  p,li{color:#c3c3cd}pre{background:#0c0c12;border:1px solid var(--bd);border-radius:12px;padding:.9rem 1rem;overflow:auto;font:13px/1.55 ui-monospace,monospace;color:#d8d8e2}
-  code{background:#0c0c12;border:1px solid var(--bd);border-radius:6px;padding:.06em .4em;font-size:.86em}pre code{background:0;border:0;padding:0}
-  table{border-collapse:collapse;width:100%;font-size:.9rem}td,th{border-bottom:1px solid #1b1b24;padding:.45rem .5rem;text-align:left;color:#c3c3cd}th{color:var(--mut);font-weight:500}
-  a{color:var(--acc2)}
-</style></head>
-<body><script>
 // noet — общий хедер для всех app-страниц: лого (→ главная), навигация, чип профиля
 // (аватар+ник, → профиль). Грузится с Pages, без переустановки. data-page на <html>
 // помечает активный пункт.
@@ -59,26 +39,3 @@
     } catch (e) { /* нет ключа — без чипа */ }
   })();
 })();
-</script><div class="wrap">
-  <h1>Для разработчиков</h1>
-  <p class="lead">Собери своё на noet: страницы, форумы, доски, вики. Сервер не нужен.</p>
-  <h2>Конструктор: пять примитивов</h2>
-  <p>На каждой странице noet доступен <code>window.noet</code>. Из пяти примитивов собирается что угодно, без правок ядра. Данные это подписанные события, живут в сети.</p>
-  <h3>Identity</h3><pre><code>const me = await noet.identity.me();
-const profile = await noet.identity.get(pubkey);</code></pre>
-  <h3>Space</h3><pre><code>const s = await noet.space.create({ type: "forum", title: "Мой форум" });</code></pre>
-  <h3>Artifact</h3><pre><code>await noet.artifact.publish({ space, content: "пост" });
-const feed = await noet.artifact.query({ space });</code></pre>
-  <h3>Relation</h3><pre><code>await noet.relation.add({ type: "reply", to: postId, toAuthor: pk, content: "ответ" });</code></pre>
-  <h3>Policy</h3><pre><code>await noet.policy.set(space, { post: { minRep: 3 } });</code></pre>
-  <h2>Готовые шаблоны</h2>
-  <table><tr><th>Шаблон</th><th>Исходник</th></tr>
-    <tr><td>Гостевая книга</td><td><a href="https://noet-scz.github.io/noet/sites/guestbook/" target="_blank">открыть</a></td></tr>
-    <tr><td>Форум</td><td><a href="https://noet-scz.github.io/noet/sites/forum/" target="_blank">открыть</a></td></tr>
-    <tr><td>Блог</td><td><a href="https://noet-scz.github.io/noet/sites/blog/" target="_blank">открыть</a></td></tr>
-    <tr><td>Объявления</td><td><a href="https://noet-scz.github.io/noet/sites/market/" target="_blank">открыть</a></td></tr>
-    <tr><td>Вики</td><td><a href="https://noet-scz.github.io/noet/sites/wiki/" target="_blank">открыть</a></td></tr></table>
-  <h2>Свой экземпляр</h2>
-  <p>Код открыт: <a href="https://github.com/noet-scz/noet" target="_blank">github.com/noet-scz/noet</a>.</p>
-</div>
-</body></html>

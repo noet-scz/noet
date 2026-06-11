@@ -1,36 +1,123 @@
 <!doctype html>
-<html lang="ru"><head>
+<html lang="ru" data-page="noet.nt"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>noet</title>
 <style>
   :root{--bg:#0a0a0d;--panel2:#16161f;--bd:#24242e;--bd2:#2f2f3a;--fg:#f1f1f5;--mut:#9595a3;--acc:#7c5cff;--acc2:#9d8bff}
-  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%}
   body{background:radial-gradient(120% 75% at 50% -8%,#16121f 0%,transparent 60%) fixed,var(--bg);color:var(--fg);font:16px/1.55 -apple-system,system-ui,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
-  .stage{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:clamp(4rem,16vh,10rem) 1.2rem 4rem;max-width:42rem;margin:0 auto}
-  .mark{display:flex;align-items:center;gap:.7rem;margin-bottom:1.8rem}.mark img{width:52px;height:52px}.mark h1{font-size:2.6rem;margin:0;font-weight:680;letter-spacing:-.5px}
-  form{width:100%;display:flex;gap:.5rem}
-  #q{flex:1;font-size:1.05rem;background:var(--panel2);border:1px solid var(--bd2);color:var(--fg);border-radius:14px;padding:.95rem 1.1rem;outline:none;transition:.15s}
+  .stage{display:flex;flex-direction:column;align-items:center;padding:clamp(3rem,12vh,7rem) 1.2rem 4rem;max-width:42rem;margin:0 auto}
+  .mark{display:flex;align-items:center;gap:.7rem;margin-bottom:1.6rem}.mark img{width:52px;height:52px}.mark h1{font-size:2.6rem;margin:0;font-weight:680;letter-spacing:-.5px}
+  .sb{width:100%;position:relative}
+  #q{width:100%;font-size:1.05rem;background:var(--panel2);border:1px solid var(--bd2);color:var(--fg);border-radius:14px;padding:.95rem 3rem .95rem 1.1rem;outline:none;transition:.15s}
   #q:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(124,92,255,.18)}#q::placeholder{color:#5b5b6a}
-  .go{background:var(--acc);border:0;border-radius:14px;color:#fff;padding:0 1.3rem;cursor:pointer;font-weight:600}.go:hover{background:#6b4dff}
-  .quick{margin-top:1.4rem;display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center}
-  .quick a{font-size:.9rem;color:var(--mut);background:var(--panel2);border:1px solid var(--bd);border-radius:999px;padding:.4rem 1rem;cursor:pointer}
-  .quick a:hover{border-color:var(--acc);color:var(--fg)}
-  .hint{color:var(--mut);font-size:.86rem;margin-top:1.6rem;text-align:center}
+  .ico{position:absolute;right:.6rem;top:50%;transform:translateY(-50%);background:0;border:0;cursor:pointer;color:var(--mut);padding:.4rem;display:flex}
+  .ico:hover{color:var(--acc2)}.ico svg{width:22px;height:22px;display:block}
+  #res{width:100%;margin-top:.8rem}
+  .r{display:flex;align-items:center;gap:.7rem;padding:.6rem .8rem;border-radius:12px;cursor:pointer}
+  .r:hover{background:var(--panel2)}.r .av{width:34px;height:34px;border-radius:50%;flex:0 0 34px}
+  .r .dn{font-weight:600}.r .h{color:var(--mut);font-size:.85rem;margin-left:.4rem}
+  .empty{color:var(--mut);text-align:center;margin-top:1.4rem;font-size:.9rem}
+  .quick{margin-top:1.6rem;display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center}
+  .quick a{font-size:.9rem;color:var(--mut);background:var(--panel2);border:1px solid var(--bd);border-radius:999px;padding:.4rem 1rem;cursor:pointer;text-decoration:none}.quick a:hover{border-color:var(--acc);color:var(--fg)}
 </style></head>
-<body><div class="stage">
+<body>
+<div class="stage">
   <div class="mark"><img src="../logo.svg" alt=""><h1>noet</h1></div>
-  <form id="f" autocomplete="off"><input id="q" placeholder="имя в noet, напр. nyx" autofocus><button class="go" type="submit">Открыть</button></form>
-  <div class="quick">
-    <a data-go="id.nt">Моя страница</a><a data-go="people.nt">Люди</a><a data-go="relay.nt">Лента</a><a data-go="dev.nt">Разработчики</a>
-  </div>
-  <div class="hint">Впиши имя и открой его страницу. Свободный интернет, который тебе принадлежит.</div>
+  <form class="sb" id="f" autocomplete="off">
+    <input id="q" placeholder="искать в noet" autofocus>
+    <button class="ico" type="submit" aria-label="искать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line></svg></button>
+  </form>
+  <div id="res"></div>
+  <div class="quick"><a data-go="people.nt">Люди</a><a data-go="relay.nt">Лента</a><a data-go="dev.nt">Разработчикам</a></div>
 </div>
 <script>
+// noet — общий хедер для всех app-страниц: лого (→ главная), навигация, чип профиля
+// (аватар+ник, → профиль). Грузится с Pages, без переустановки. data-page на <html>
+// помечает активный пункт.
+(function () {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
   var go = function (h) { if (window.noet && noet.go) noet.go('http://' + h + '/'); else location.href = 'http://' + h + '/'; };
+  var here = document.documentElement.getAttribute('data-page') || '';
+  var NAV = [['people.nt', 'Люди'], ['relay.nt', 'Лента'], ['dev.nt', 'Разработчикам']];
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.nhdr{display:flex;align-items:center;gap:.4rem;padding:.7rem 1.1rem;max-width:46rem;margin:0 auto;width:100%}' +
+    '.nbrand{cursor:pointer;display:flex;align-items:center;padding:.2rem}.nbrand img{width:28px;height:28px;display:block}' +
+    '.nnav{display:flex;gap:.15rem;flex-wrap:wrap}.nnav a{color:#9595a3;font-size:.86rem;padding:.32rem .7rem;border-radius:999px;cursor:pointer;text-decoration:none;white-space:nowrap}.nnav a:hover{color:#f1f1f5}.nnav a.on{color:#f1f1f5;background:#16161f}' +
+    '.nme{margin-left:auto;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;background:#16161f;border:1px solid #2f2f3a;border-radius:999px;padding:.22rem .7rem .22rem .25rem;text-decoration:none;color:#f1f1f5;font-size:.86rem;font-weight:600;max-width:10rem}.nme:hover{border-color:#7c5cff}' +
+    '.nme img{width:26px;height:26px;border-radius:50%;flex:0 0 26px}.nme .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
+  document.head.appendChild(st);
+
+  var hdr = document.createElement('header'); hdr.className = 'nhdr';
+  hdr.innerHTML = '<a class="nbrand" id="nbrand" title="Главная"><img src="../logo.svg" alt="noet"></a>' +
+    '<nav class="nnav">' + NAV.map(function (n) { return '<a data-h="' + n[0] + '"' + (here === n[0] ? ' class=on' : '') + '>' + n[1] + '</a>'; }).join('') + '</nav>' +
+    '<a class="nme" id="nme" title="Моя страница" style="display:none"></a>';
+  document.body.insertBefore(hdr, document.body.firstChild);
+  document.getElementById('nbrand').onclick = function () { go('noet.nt'); };
+  hdr.querySelectorAll('[data-h]').forEach(function (a) { a.onclick = function () { go(a.dataset.h); }; });
+  var me = document.getElementById('nme'); me.onclick = function () { go('id.nt'); };
+
+  function genAv(pk, nm) { var h = 0, seed = pk || nm || '?'; for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (nm || '').trim() ? nm.trim()[0].toUpperCase() : ''; return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text></svg>"); }
+  (async function () {
+    if (!window.noet) return;
+    try {
+      var pk = (await noet.me()).pubkey;
+      var profs = await noet.query({ kinds: [0], authors: [pk], limit: 1 }); var prof = {}; try { prof = JSON.parse(profs[0].content); } catch (e) {}
+      var claims = (await noet.query({ kinds: [31111], authors: [pk], limit: 20 })).filter(function (e) { return /\.(me|nt)$/i.test(((e.tags.find(function (t) { return t[0] === 'd'; }) || [])[1]) || ''); }).sort(function (a, b) { return b.created_at - a.created_at; });
+      var name = claims[0] ? ((claims[0].tags.find(function (t) { return t[0] === 'd'; }) || [])[1]) : ''; var handle = name.replace(/\.(me|nt)$/i, '');
+      var dn = prof.name || handle || 'я';
+      var av = prof.picture && /^(https?:|data:)/i.test(prof.picture) ? prof.picture : genAv(pk, dn);
+      me.innerHTML = '<img src="' + esc(av) + '"><span class=nm>' + esc(dn) + '</span>'; me.style.display = 'inline-flex';
+    } catch (e) { /* нет ключа — без чипа */ }
+  })();
+})();
+</script>
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
+  var tagv = function (ev, k) { var t = (ev.tags || []).find(function (x) { return x[0] === k; }); return t ? t[1] : ''; };
+  var hf = function (n) { return String(n).replace(/\.(me|nt)$/i, ''); };
+  var isTest = function (n) { return /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n); };
+  var go = function (h) { if (window.noet && noet.go) noet.go('http://' + h + '/'); else location.href = 'http://' + h + '/'; };
+  function genAv(pk, nm) { var h = 0, s = pk || nm || '?'; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (nm || '').trim() ? nm.trim()[0].toUpperCase() : ''; return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text></svg>"); }
   document.querySelectorAll('[data-go]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); go(a.dataset.go); }; });
-  document.getElementById('f').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var v = (document.getElementById('q').value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (!v) return; if (!/\.(nt|me)$/.test(v)) v += '.me'; go(v);
+
+  var INDEX = null;   // [{name, handle, dn, pk, pic}]
+  async function buildIndex() {
+    if (INDEX) return INDEX;
+    var evs = window.noet ? await noet.query([{ kinds: [31111], '#t': ['noet-name'], limit: 1000 }, { kinds: [0], limit: 1000 }, { kinds: [5], limit: 1000 }]) : [];
+    var prof = {}; evs.filter(function (e) { return e.kind === 0; }).forEach(function (e) { if (!prof[e.pubkey] || e.created_at > (prof[e.pubkey]._ts || 0)) { try { var p = JSON.parse(e.content); p._ts = e.created_at; prof[e.pubkey] = p; } catch (x) {} } });
+    var del = {}; evs.filter(function (e) { return e.kind === 5; }).forEach(function (e) { (e.tags || []).forEach(function (t) { if (t[0] === 'e') (del[e.pubkey] = del[e.pubkey] || {})[t[1]] = 1; }); });
+    var seen = {}; INDEX = [];
+    evs.filter(function (e) { return e.kind === 31111 && /\.(me|nt)$/i.test(tagv(e, 'd')) && !isTest(tagv(e, 'd')) && !(del[e.pubkey] && del[e.pubkey][e.id]); }).forEach(function (c) { var n = tagv(c, 'd'); if (seen[n]) return; seen[n] = 1; var p = prof[c.pubkey] || {}; INDEX.push({ name: n, handle: hf(n), dn: p.name || hf(n), pk: c.pubkey, pic: p.picture }); });
+    return INDEX;
+  }
+  function results(items) {
+    $('#res').innerHTML = items.length ? items.slice(0, 12).map(function (m) {
+      return '<div class="r" data-name="' + esc(m.name) + '"><img class="av" src="' + esc(/^(https?:|data:)/i.test(m.pic || '') ? m.pic : genAv(m.pk, m.dn)) + '"><div><span class="dn">' + esc(m.dn) + '</span><span class="h">' + esc(m.name) + '</span></div></div>';
+    }).join('') : '';
+    document.querySelectorAll('.r').forEach(function (r) { r.onclick = function () { go(r.dataset.name); }; });
+  }
+  async function search(q) {
+    q = (q || '').trim().toLowerCase();
+    if (!q) { $('#res').innerHTML = ''; return; }
+    var idx = await buildIndex();
+    var hit = idx.filter(function (m) { return m.handle.toLowerCase().indexOf(q) >= 0 || (m.dn || '').toLowerCase().indexOf(q) >= 0; })
+      .sort(function (a, b) { return (a.handle === q ? -2 : a.handle.indexOf(q)) - (b.handle === q ? -2 : b.handle.indexOf(q)); });
+    if (!hit.length) { $('#res').innerHTML = '<div class="empty">Ничего не нашлось. Нажми «искать», чтобы открыть «' + esc(q) + '».</div>'; return; }
+    results(hit);
+  }
+  var deb; $('#q').addEventListener('input', function () { clearTimeout(deb); deb = setTimeout(function () { search($('#q').value); }, 250); });
+  $('#f').addEventListener('submit', async function (e) {
+    e.preventDefault(); var v = ($('#q').value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (!v) return;
+    var idx = await buildIndex();
+    var exact = idx.find(function (m) { return m.handle === v || m.name === v; });
+    if (exact) return go(exact.name);
+    if (!/\.(nt|me)$/.test(v)) v += '.me'; go(v);   // прямой переход по имени
   });
+})();
 </script></body></html>

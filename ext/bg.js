@@ -14,17 +14,27 @@ let hosts = new Set();   // какие хосты реально наши
 // Благодаря ей имя перехватывается БЕЗ реестра, как только кто-то его заявил.
 function relayClaimNames() {
   return new Promise((resolve) => {
-    const names = new Set();
-    let socks; try { socks = relays.map((u) => new WebSocket(u)); } catch { return resolve(names); }
+    const claims = [];        // {id, pubkey, name}
+    const del = new Map();    // pubkey -> Set(удалённые id), kind 5 = освобождение имени
+    let socks; try { socks = relays.map((u) => new WebSocket(u)); } catch { return resolve(new Set()); }
     let closed = 0;
-    const fin = () => { try { socks.forEach((w) => w.close()); } catch {} resolve(names); };
+    const fin = () => {
+      try { socks.forEach((w) => w.close()); } catch {}
+      const names = new Set();   // имя живо, пока есть хоть одна НЕудалённая заявка на него
+      for (const c of claims) { const ds = del.get(c.pubkey); if (ds && ds.has(c.id)) continue; names.add(c.name); }
+      resolve(names);
+    };
     const t = setTimeout(fin, 4500);
     socks.forEach((ws) => {
-      ws.onopen = () => { try { ws.send(JSON.stringify(['REQ', 'n', { kinds: [31111], '#t': ['noet-name'], limit: 2000 }])); } catch {} };
+      ws.onopen = () => { try { ws.send(JSON.stringify(['REQ', 'n', { kinds: [31111], '#t': ['noet-name'], limit: 2000 }, { kinds: [5], limit: 2000 }])); } catch {} };
       ws.onmessage = (m) => {
         try {
           const a = JSON.parse(m.data);
-          if (a[0] === 'EVENT') { const d = ((a[2].tags || []).find((x) => x[0] === 'd') || [])[1]; if (d && /^[a-z0-9.-]+\.(nt|me)$/i.test(d) && !/^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(d)) names.add(d.toLowerCase()); }
+          if (a[0] === 'EVENT') {
+            const ev = a[2];
+            if (ev.kind === 5) { let s = del.get(ev.pubkey); if (!s) del.set(ev.pubkey, s = new Set()); (ev.tags || []).forEach((x) => { if (x[0] === 'e') s.add(x[1]); }); }
+            else { const d = ((ev.tags || []).find((x) => x[0] === 'd') || [])[1]; if (d && /^[a-z0-9.-]+\.(nt|me)$/i.test(d) && !/^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(d)) claims.push({ id: ev.id, pubkey: ev.pubkey, name: d.toLowerCase() }); }
+          }
           else if (a[0] === 'EOSE') { ws.close(); if (++closed >= socks.length) { clearTimeout(t); fin(); } }
         } catch {}
       };
