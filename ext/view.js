@@ -117,6 +117,9 @@ window.addEventListener('message', async (e) => {
     $('#msg').style.display = 'none'; $('#frame').hidden = false;
     return;
   }
+  // навигация из sandbox-страницы (UI снаружи): перевести ВКЛАДКУ на noet-имя
+  if (d && d.__noetNav) { try { location.href = d.__noetNav; } catch {} return; }
+  if (d && d.__noetOpen) { try { window.open(d.__noetOpen, '_blank', 'noopener'); } catch {} return; }
   if (d && d.__noetCall) {
     let result, error;
     try { result = await handleCall(d.api, d.method, d.params); } catch (err) { error = (err && err.message) || 'ошибка'; }
@@ -194,9 +197,22 @@ async function main() {
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
 
-  // ВСЕ служебные страницы живут ВНУТРИ расширения (serverless: ключ + сеть, без VPS)
-  const APP_PAGES = { 'noet.nt': 'home.html', 'search.nt': 'home.html', 'id.nt': 'app.html', 'people.nt': 'people.html', 'dev.nt': 'dev.html', 'relay.nt': 'feed.html' };
-  if (APP_PAGES[host]) { location.href = api.runtime.getURL(APP_PAGES[host]); return; }
+  // Служебные страницы (дом/профиль/люди/лента/разработчикам) тянутся СНАРУЖИ (с Pages)
+  // и рисуются в sandbox с мостом window.noet/nostr. Расширение заморожено: правки UI
+  // идут без переустановки. Вшитая копия — только запасной путь, если Pages недоступны.
+  const APP_PAGES = { 'noet.nt': 'home', 'search.nt': 'home', 'id.nt': 'profile', 'people.nt': 'people', 'dev.nt': 'dev', 'relay.nt': 'feed' };
+  if (APP_PAGES[host]) {
+    setName(host);
+    showMsg('<div class="spin"></div><div>Открываю…</div>');
+    const page = APP_PAGES[host];
+    const uiBase = ((cfg.ui_base || 'https://noet-scz.github.io/noet/dist/app/').replace(/\/$/, '')) + '/';
+    try {
+      const r = await fetch(uiBase + page + '.html', { cache: 'no-cache', signal: AbortSignal.timeout(8000) });
+      if (r.ok) { const html = await r.text(); if (/<[a-z!/]/i.test(html)) { renderDoc(html, uiBase); return; } }
+    } catch { /* запасной путь ниже */ }
+    location.href = api.runtime.getURL((page === 'profile' ? 'app' : page) + '.html');   // вшитый запас
+    return;
+  }
 
   // контент по имени
   setName(host);

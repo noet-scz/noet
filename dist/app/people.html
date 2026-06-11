@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Люди · noet</title>
+<style>
+  :root{--bg:#0a0a0d;--panel:#111118;--panel2:#16161f;--bd:#24242e;--bd2:#2f2f3a;--fg:#f1f1f5;--mut:#9595a3;--acc:#7c5cff;--acc2:#9d8bff;--ok:#3ddc97}
+  *{box-sizing:border-box}html,body{margin:0;min-height:100%}
+  body{background:radial-gradient(120% 75% at 50% -12%,#16121f 0%,transparent 58%) fixed,var(--bg);color:var(--fg);font:15px/1.55 -apple-system,system-ui,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:40rem;margin:0 auto;padding:2.2rem 1.2rem 5rem}
+  .top{display:flex;align-items:center;gap:.55rem;margin-bottom:.7rem}.top img{width:28px;height:28px}.top b{font-size:1.05rem}
+  .nav{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:1.2rem}
+  .nav a{color:var(--mut);font-size:.86rem;padding:.32rem .7rem;border-radius:999px;border:1px solid transparent;cursor:pointer}
+  .nav a:hover{color:var(--fg);border-color:var(--bd2)}.nav a.on{color:var(--fg);background:var(--panel2);border-color:var(--bd2)}
+  h1{font-size:1.5rem;letter-spacing:-.3px;margin:.4rem 0 .2em}.lead{color:var(--mut);margin:0 0 1.2rem}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--bd);border-radius:14px;padding:1rem 1.1rem;margin-bottom:.7rem;box-shadow:0 8px 30px rgba(0,0,0,.28)}
+  .prow{display:flex;align-items:flex-start;gap:.8rem}.pav{width:42px;height:42px;border-radius:50%;flex:0 0 42px}
+  .pname{font-weight:650}.pname a{color:var(--fg);cursor:pointer}.pname .me{color:var(--mut);font-weight:400;font-size:.85rem}
+  .psub{color:var(--mut);font-size:.83rem;margin-top:.1rem}
+  .rep{margin-left:auto;text-align:right}.rep b{font-size:1.25rem;color:var(--acc2)}.rep .lbl{display:block;color:var(--mut);font-size:.72rem}
+  .acts{margin-top:.5rem}button{border:0;border-radius:9px;padding:.4rem .9rem;font:inherit;font-weight:600;cursor:pointer}
+  .b{background:var(--acc);color:#fff}.b:hover{background:#6b4dff}.g{background:transparent;border:1px solid var(--bd2);color:var(--mut)}.g:hover{border-color:var(--acc);color:var(--fg)}
+  .msg{font-size:.82rem;margin-left:.5rem}.msg.err{color:#ff7b8a}.mut{color:var(--mut)}
+  h2{font-size:1.1rem;margin:2rem 0 .6rem;border-left:3px solid var(--acc);padding-left:.6rem}.rules p{margin:.35rem 0;color:#c3c3cd;font-size:.92rem}.rules b{color:var(--fg)}
+</style></head>
+<body><div class="wrap">
+  <div class="top"><img src="../logo.svg" alt=""><b>noet</b></div>
+  <nav class="nav"><a data-go="noet.nt">Главная</a><a data-go="id.nt">Моя страница</a><a class="on" data-go="people.nt">Люди</a><a data-go="relay.nt">Лента</a><a data-go="dev.nt">Разработчики</a></nav>
+  <h1>Люди</h1><p class="lead">Участники сети и их репутация. Считается из подписанных событий, без сервера.</p>
+  <div id="me"></div><div id="list"><div class="mut">загружаю…</div></div>
+  <h2>Как растёт репутация</h2>
+  <div class="card rules"><p><b>Даётся за:</b> стаж в сети и поручительства других.</p><p><b>Это ёмкость, а не власть.</b> Считается у тебя в браузере, одинаково у всех.</p></div>
+</div>
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
+  var tagv = function (ev, k) { var t = (ev.tags || []).find(function (x) { return x[0] === k; }); return t ? t[1] : ''; };
+  var handleFromName = function (n) { return String(n).replace(/\.(me|nt)$/i, ''); };
+  var isTest = function (n) { return /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n); };
+  document.querySelectorAll('[data-go]').forEach(function (a) { a.onclick = function () { noet.go('http://' + a.dataset.go + '/'); }; });
+  function avatar(pk, name, pic) { if (pic && /^(https?:|data:)/i.test(pic)) return pic; var h = 0, seed = pk || name; for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (name || '').trim() ? name.trim()[0].toUpperCase() : '';
+    return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text></svg>"); }
+
+  var MYPK = null, PEOPLE = [], MYV = new Set();
+  function activeVouches(evs) { var last = {}; evs.filter(function (e) { return e.kind === 8001 || e.kind === 8002; }).forEach(function (v) { var k = v.pubkey + '>' + tagv(v, 'p'); if (!last[k] || v.created_at >= last[k].created_at) last[k] = v; }); return Object.keys(last).map(function (k) { return last[k]; }).filter(function (v) { return v.kind === 8001; }); }
+
+  async function load() {
+    try { MYPK = (await noet.me()).pubkey; } catch (e) { MYPK = null; }
+    var evs = await noet.query([{ kinds: [31111], '#t': ['noet-name'], limit: 500 }, { kinds: [0], limit: 500 }, { kinds: [8001, 8002], limit: 1000 }]);
+    var members = {};
+    evs.filter(function (e) { return e.kind === 31111 && /\.(me|nt)$/i.test(tagv(e, 'd')) && !isTest(tagv(e, 'd')); }).forEach(function (c) { var pk = c.pubkey, n = tagv(c, 'd'); if (!members[pk] || c.created_at < members[pk].since) members[pk] = { name: n, since: c.created_at }; });
+    var profs = {}; evs.filter(function (e) { return e.kind === 0; }).forEach(function (e) { if (!profs[e.pubkey] || e.created_at > (profs[e.pubkey]._ts || 0)) { try { var p = JSON.parse(e.content); p._ts = e.created_at; profs[e.pubkey] = p; } catch (x) {} } });
+    var vouches = activeVouches(evs).filter(function (v) { return members[v.pubkey] && members[tagv(v, 'p')]; });
+    var now = Date.now() / 1000, rep = {}, recv = {};
+    for (var pk in members) rep[pk] = 1 + Math.min(12, Math.floor((now - members[pk].since) / (30 * 86400))) * 0.5;
+    vouches.forEach(function (v) { var to = tagv(v, 'p'); recv[to] = (recv[to] || []).concat((profs[v.pubkey] && profs[v.pubkey].name) || handleFromName(members[v.pubkey].name)); rep[to] = (rep[to] || 1) + 1; });
+    PEOPLE = Object.keys(members).map(function (pk) { return { pk: pk, name: members[pk].name, since: members[pk].since, prof: profs[pk] || null, rep: Math.round((rep[pk] || 1) * 10) / 10, vouchers: recv[pk] || [] }; }).sort(function (a, b) { return b.rep - a.rep; });
+    MYV = new Set(vouches.filter(function (v) { return v.pubkey === MYPK; }).map(function (v) { return tagv(v, 'p'); }));
+    render();
+  }
+  function render() {
+    var mine = PEOPLE.find(function (p) { return p.pk === MYPK; });
+    $('#me').innerHTML = MYPK ? '<div class="card"><div class="psub">ты: @' + esc(handleFromName((mine || {}).name || MYPK.slice(0, 10))) + ' · репутация <b style="color:var(--acc2)">' + esc((mine || {}).rep != null ? mine.rep : '—') + '</b></div></div>'
+      : '<div class="card"><span class="mut">Создай личность в расширении, чтобы ручаться за людей.</span></div>';
+    $('#list').innerHTML = PEOPLE.map(function (m) {
+      var handle = handleFromName(m.name), dn = (m.prof && m.prof.name) || handle, isMine = MYPK === m.pk, vouched = MYV.has(m.pk);
+      return '<div class="card"><div class="prow"><img class="pav" src="' + avatar(m.pk, dn, m.prof && m.prof.picture) + '">' +
+        '<div style="min-width:0"><div class="pname"><a data-go-me="' + esc(m.name) + '">' + esc(dn) + '</a> <span class="me">@' + esc(handle) + '</span></div>' +
+        '<div class="psub">в noet с ' + new Date(m.since * 1000).toLocaleDateString('ru') + (m.vouchers.length ? ' · ручались: ' + m.vouchers.map(esc).join(', ') : '') + '</div>' +
+        (MYPK && !isMine ? '<div class="acts">' + (vouched ? '<button class="g" data-un="' + esc(m.pk) + '">Отозвать поручительство</button>' : '<button class="b" data-v="' + esc(m.pk) + '">Поручиться</button>') + '<span class="msg" data-m="' + esc(m.pk) + '"></span></div>' : '') +
+        '</div><div class="rep"><b>' + esc(m.rep) + '</b><span class="lbl">репутация</span></div></div></div>';
+    }).join('') || '<div class="mut">Пока никого.</div>';
+    document.querySelectorAll('[data-go-me]').forEach(function (a) { a.onclick = function () { noet.go('http://' + a.dataset.goMe + '/'); }; });
+    document.querySelectorAll('[data-v],[data-un]').forEach(function (b) { b.onclick = async function () { var pk = b.dataset.v || b.dataset.un, m = document.querySelector('[data-m="' + pk + '"]'); if (m) { m.textContent = '…'; m.className = 'msg'; }
+      try { await noet.publish({ kind: b.dataset.v ? 8001 : 8002, tags: [['p', pk]] }); await load(); } catch (e) { if (m) { m.textContent = 'не вышло'; m.className = 'msg err'; } } }; });
+  }
+  if (!window.noet) { $('#list').innerHTML = '<div class="mut">Открой через расширение noet.</div>'; return; }
+  load().catch(function () { $('#list').innerHTML = '<div class="mut">не загрузилось, обнови</div>'; });
+})();
+</script></body></html>

@@ -13,10 +13,12 @@
   body{background:radial-gradient(120% 75% at 50% -12%,#16121f 0%,transparent 58%) fixed,var(--bg);
     color:var(--fg);font:15px/1.55 -apple-system,system-ui,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
   .wrap{max-width:36rem;margin:0 auto;padding:2.4rem 1.2rem 5rem}
-  .top{display:flex;align-items:center;gap:.55rem;margin-bottom:1.8rem}
+  .top{display:flex;align-items:center;gap:.55rem;margin-bottom:.7rem}
   .top img{width:28px;height:28px}.top b{font-size:1.05rem;letter-spacing:.2px}
-  .top .sp{flex:1}
-  .top a{color:var(--mut);font-size:.86rem;margin-left:1rem}
+  .nav{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:1.6rem}
+  .nav a{color:var(--mut);font-size:.86rem;text-decoration:none;padding:.32rem .7rem;border-radius:999px;border:1px solid transparent}
+  .nav a:hover{color:var(--fg);border-color:var(--bd2)}
+  .nav a.on{color:var(--fg);background:var(--panel2);border-color:var(--bd2)}
   .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--bd);
     border-radius:var(--r);padding:1.3rem;box-shadow:0 8px 30px rgba(0,0,0,.32);margin-bottom:1rem}
   h1{font-size:1.5rem;letter-spacing:-.3px;margin:0 0 .2em}
