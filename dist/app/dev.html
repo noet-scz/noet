@@ -72,6 +72,10 @@
       '<h3>5. Done</h3>' +
       '<p>Open <code>http://alex.me/</code> in a browser with the noet extension. Relative paths (<code>./app.js</code>, <code>./assets/…</code>) load by themselves. To update: rebuild and run the same command — new CID, same address.</p>' +
       '<p class="note">Under the hood: folder → directory CID in IPFS; a <code>kind 31002</code> event (<code>d</code> = name, content <code>{cid}</code>) signed with your key; published to public relays. The name is held by your key. Source: <a href="https://github.com/noet-scz/noet/blob/main/tools/noet-publish.mjs" target="_blank">tools/noet-publish.mjs</a>.</p>' +
+      '<h2>Subdomains</h2>' +
+      '<p>Own <code>nyx.me</code> and you own its whole subtree: publish at <code>dev.nyx.me</code>, <code>shop.nyx.me</code>, <code>api.dev.nyx.me</code> — free, no extra registration. Just pass the full name:</p>' +
+      cb('node tools/noet-publish.mjs --name dev.nyx.me --dir ./dist') +
+      '<p class="note">Only the base owner’s pages under a name are honored, so nobody can squat <code>*.nyx.me</code> but you. You can also create and edit them in ' + link('id.nt', 'My page') + ' → Subdomains.</p>' +
       '<h2>Ready-made templates</h2>' + tableHtml() +
       '<h2>Run your own instance</h2>' +
       '<p>The code is open: <a href="https://github.com/noet-scz/noet" target="_blank">github.com/noet-scz/noet</a>.</p>';
@@ -109,6 +113,10 @@
       '<h3>5. Готово</h3>' +
       '<p>Открой <code>http://alex.me/</code> в браузере с расширением noet. Относительные пути (<code>./app.js</code>, <code>./assets/…</code>) грузятся сами. Обновить: пересобери и повтори команду — новый CID, тот же адрес.</p>' +
       '<p class="note">Под капотом: папка → CID директории в IPFS; событие <code>kind 31002</code> (<code>d</code> = имя, content <code>{cid}</code>), подписанное твоим ключом; публикация на публичные реле. Имя держит твой ключ. Исходник: <a href="https://github.com/noet-scz/noet/blob/main/tools/noet-publish.mjs" target="_blank">tools/noet-publish.mjs</a>.</p>' +
+      '<h2>Поддомены</h2>' +
+      '<p>Владеешь <code>nyx.me</code> — владеешь всем поддеревом: публикуй на <code>dev.nyx.me</code>, <code>shop.nyx.me</code>, <code>api.dev.nyx.me</code> — бесплатно, без отдельной регистрации. Просто передай полное имя:</p>' +
+      cb('node tools/noet-publish.mjs --name dev.nyx.me --dir ./dist') +
+      '<p class="note">Под именем учитываются только страницы владельца базы, поэтому занять <code>*.nyx.me</code> мимо тебя нельзя. Создавать и править их можно и на странице ' + link('id.nt', 'Моя страница') + ' → Поддомены.</p>' +
       '<h2>Готовые шаблоны</h2>' + tableHtml() +
       '<h2>Свой экземпляр</h2>' +
       '<p>Код открыт: <a href="https://github.com/noet-scz/noet" target="_blank">github.com/noet-scz/noet</a>.</p>';

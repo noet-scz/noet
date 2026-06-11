@@ -8,7 +8,10 @@ const CONFIG_URL = 'https://noet-scz.github.io/noet/dist/config.json';
 const NAMES_URL = 'https://noet-scz.github.io/noet/dist/names.json';
 let relays = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band'];
 
-let hosts = new Set();   // какие хосты реально наши
+let hosts = new Set();        // точные хосты, которые наши (базовые имена + служебные)
+let claimBases = new Set();   // заявленные имена, чьё ПОДДЕРЕВО наше: владелец nyx.me владеет *.nyx.me
+// базовое имя = последние две метки (label.tld). dev.nyx.me и api.dev.nyx.me → nyx.me
+const baseOf = (h) => { const p = String(h).split('.'); return p.length <= 2 ? h : p.slice(-2).join('.'); };
 
 // serverless-директория: имена-заявки (kind 31111, t=noet-name) с публичных реле.
 // Благодаря ей имя перехватывается БЕЗ реестра, как только кто-то его заявил.
@@ -44,16 +47,16 @@ function relayClaimNames() {
 }
 
 async function loadHosts() {
-  const out = new Set();
+  const out = new Set(), bases = new Set();   // out: точные; bases: имена-владельцы поддеревьев (без служебных)
   try { const c = await (await fetch(CONFIG_URL, { cache: 'no-cache' })).json(); for (const k of Object.keys(c.app_hosts || {})) out.add(k.toLowerCase()); if (Array.isArray(c.relays) && c.relays.length) relays = c.relays; } catch {}
-  try { const n = await (await fetch(NAMES_URL, { cache: 'no-cache' })).json(); for (const k of Object.keys(n || {})) out.add(k.toLowerCase()); } catch {}
-  try { (await relayClaimNames()).forEach((n) => out.add(n)); } catch {}   // имена с реле (serverless)
-  if (out.size) { hosts = out; try { await api.storage.local.set({ ihosts: [...out] }); } catch {} }
-  else { try { const { ihosts } = await api.storage.local.get('ihosts'); if (ihosts) hosts = new Set(ihosts); } catch {} }
+  try { const n = await (await fetch(NAMES_URL, { cache: 'no-cache' })).json(); for (const k of Object.keys(n || {})) { out.add(k.toLowerCase()); bases.add(k.toLowerCase()); } } catch {}
+  try { (await relayClaimNames()).forEach((n) => { out.add(n); bases.add(n); }); } catch {}   // имена с реле (serverless)
+  if (out.size) { hosts = out; claimBases = bases; try { await api.storage.local.set({ ihosts: [...out], ibases: [...bases] }); } catch {} }
+  else { try { const { ihosts, ibases } = await api.storage.local.get(['ihosts', 'ibases']); if (ihosts) hosts = new Set(ihosts); if (ibases) claimBases = new Set(ibases); } catch {} }
   return hosts;
 }
 async function knownHosts() {
-  if (!hosts.size) { try { const { ihosts } = await api.storage.local.get('ihosts'); if (ihosts) hosts = new Set(ihosts); } catch {} }
+  if (!hosts.size) { try { const { ihosts, ibases } = await api.storage.local.get(['ihosts', 'ibases']); if (ihosts) hosts = new Set(ihosts); if (ibases) claimBases = new Set(ibases); } catch {} }
   return hosts;
 }
 
@@ -66,7 +69,8 @@ api.webNavigation.onBeforeNavigate.addListener(async (d) => {
   let h; try { h = new URL(d.url).hostname.toLowerCase(); } catch { return; }
   if (!/\.(nt|me)$/.test(h)) return;          // быстрый отсев
   const set = await knownHosts();
-  if (set.has(h)) { api.tabs.update(d.tabId, { url: VIEW + '?u=' + d.url }); return; }
+  // наш хост, если: точное имя ИЛИ это поддомен имени, чьим поддеревом мы владеем (*.nyx.me)
+  if (set.has(h) || (baseOf(h) !== h && claimBases.has(baseOf(h)))) { api.tabs.update(d.tabId, { url: VIEW + '?u=' + d.url }); return; }
   // имя неизвестно: пропускаем (это реальный домен), но фоном освежаем список — вдруг
   // это только что заявленное имя. Навигацию НЕ блокируем (иначе тормозим чужие домены).
   loadHosts();

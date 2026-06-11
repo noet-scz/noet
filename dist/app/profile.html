@@ -31,6 +31,7 @@
   .dom .nm{font-weight:600}.dom .badge{font-size:.7rem;color:var(--acc2);border:1px solid var(--bd2);border-radius:999px;padding:.05rem .45rem}
   .dom .acts{margin-left:auto;display:flex;gap:.3rem}.dom .acts button{background:0;border:0;color:var(--mut);cursor:pointer;font-size:.8rem;padding:.25rem .4rem;border-radius:6px}.dom .acts button:hover{color:var(--fg);background:var(--bg)}.dom .acts button.rel:hover{color:#ff7b8a}
   .reg{display:flex;gap:.5rem;margin-top:.7rem}.reg input{flex:1}
+  .reg select{background:var(--bg);border:1px solid var(--bd2);color:var(--fg);border-radius:11px;padding:0 .5rem;font:inherit;outline:none;cursor:pointer}.reg select:focus{border-color:var(--acc)}
   .pageurl{font-size:1.05rem;color:var(--acc2);font-weight:600;text-decoration:none}.sp{flex:1}
   .msg{font-size:.9rem;margin-top:.5rem;min-height:1.1em}.msg.ok{color:var(--ok)}.msg.err{color:#ff7b8a}.msg a{color:var(--acc2)}
   h3{font-size:1rem;margin:0 0 .6rem}a{color:var(--acc2)}.mut{color:var(--mut)}
@@ -45,6 +46,7 @@
   var tagv = function (ev, k) { var t = (ev.tags || []).find(function (x) { return x[0] === k; }); return t ? t[1] : ''; };
   var hf = function (n) { return String(n || '').replace(/\.(me|nt)$/i, ''); };
   var isTest = function (n) { return /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n); };
+  var baseOfName = function (n) { var p = String(n).split('.'); return p.length <= 2 ? n : p.slice(-2).join('.'); };
 
   // ---- язык: хранится в профиле (kind 0), синхронизируется, без переустановки ----
   var LANG = 'ru';
@@ -56,7 +58,8 @@
       regPh: 'новый домен, напр. shop', register: 'Занять', taken: 'Занято.', enterName: 'Впиши имя.', noCapacity: 'Лимит доменов исчерпан. Ёмкость растёт за стаж в сети и поручительства, загляни в «Люди».', registering: 'Занимаю…',
       yourPage: 'Твоя страница', edit: 'Редактировать', pickTag: 'Имён пока нет. Займи первое ниже.',
       settings: 'Настройки', keyInfo: 'Ключ, бэкап и импорт, нажми иконку noet в браузере. Ключ это твоя личность, он живёт в расширении.', language: 'Язык',
-      back: '← назад', mText: 'Текст', mHtml: 'HTML', publish: 'Опубликовать', titleL: 'Заголовок', titlePh: 'как назвать', textL: 'Текст', bodyPh: 'Пиши свободно. Пустая строка это новый абзац.', empty: 'Пусто.', publishing: 'Публикую…', updated: 'Готово, {n} обновлена.', myPageBody: 'Это моя страница в noet.' },
+      back: '← назад', mText: 'Текст', mHtml: 'HTML', publish: 'Опубликовать', titleL: 'Заголовок', titlePh: 'как назвать', textL: 'Текст', bodyPh: 'Пиши свободно. Пустая строка это новый абзац.', empty: 'Пусто.', publishing: 'Публикую…', updated: 'Готово, {n} обновлена.', myPageBody: 'Это моя страница в noet.',
+      subdomains: 'Поддомены', subHint: 'Бесплатно под твоими доменами. Владелец имени владеет всем поддеревом: dev.nyx.me, shop.nyx.me и так далее.', subPh: 'метка, напр. dev', create: 'Создать', subExists: 'Такой поддомен уже есть.' },
     en: { noKey: 'Create an identity in the noet extension (toolbar icon), then refresh.', refresh: 'Refresh',
       dispName: 'Display name', dispNamePh: 'how to show you', avatar: 'Avatar (image link)', about: 'About', aboutPh: 'a few words',
       saveProfile: 'Save profile', saving: 'Saving…', saved: 'Saved', failed: 'Failed.', noName: 'no name yet', renameTitle: 'rename', noname2: 'no name',
@@ -64,11 +67,12 @@
       regPh: 'new domain, e.g. shop', register: 'Register', taken: 'Taken.', enterName: 'Enter a name.', noCapacity: 'Domain limit reached. Capacity grows with tenure and vouches, see “People”.', registering: 'Registering…',
       yourPage: 'Your page', edit: 'Edit', pickTag: 'No names yet. Register your first below.',
       settings: 'Settings', keyInfo: 'Key, backup and import, click the noet icon in the browser. The key is your identity, it lives in the extension.', language: 'Language',
-      back: '← back', mText: 'Text', mHtml: 'HTML', publish: 'Publish', titleL: 'Title', titlePh: 'a title', textL: 'Text', bodyPh: 'Write freely. An empty line starts a new paragraph.', empty: 'Empty.', publishing: 'Publishing…', updated: 'Done, {n} updated.', myPageBody: 'This is my page on noet.' }
+      back: '← back', mText: 'Text', mHtml: 'HTML', publish: 'Publish', titleL: 'Title', titlePh: 'a title', textL: 'Text', bodyPh: 'Write freely. An empty line starts a new paragraph.', empty: 'Empty.', publishing: 'Publishing…', updated: 'Done, {n} updated.', myPageBody: 'This is my page on noet.',
+      subdomains: 'Subdomains', subHint: 'Free under your domains. The name owner owns the whole subtree: dev.nyx.me, shop.nyx.me and so on.', subPh: 'label, e.g. dev', create: 'Create', subExists: 'That subdomain already exists.' }
   };
   function T(k, vars) { var s = (DICT[LANG] && DICT[LANG][k]) || DICT.ru[k] || k; if (vars) for (var v in vars) s = s.replace('{' + v + '}', vars[v]); return s; }
 
-  var PK = null, NAME = null, CLAIMID = null, PROFILE = {}, DOMAINS = [], CAP = 1, PAGE = null, EDNAME = null, mode = 'text', edTitle = '', edBody = '', edHtml = '', editingTag = false;
+  var PK = null, NAME = null, CLAIMID = null, PROFILE = {}, DOMAINS = [], SUBS = [], CAP = 1, PAGE = null, EDNAME = null, mode = 'text', edTitle = '', edBody = '', edHtml = '', editingTag = false;
 
   function avatar(pk, name, pic) { if (pic && /^(https?:|data:)/i.test(pic)) return pic; var h = 0, seed = pk || name || '?'; for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (name || '').trim() ? name.trim()[0].toUpperCase() : '';
     return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/>" + (ch ? "<text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text>" : "") + "</svg>"); }
@@ -81,11 +85,15 @@
   async function load() {
     try { PK = (await noet.me()).pubkey; } catch (e) { PK = null; }
     if (!PK) { $('#app').innerHTML = '<div class="card">' + esc(T('noKey')) + ' <div class="row"><button class="pri" id="rl">' + esc(T('refresh')) + '</button></div></div>'; $('#rl').onclick = function () { location.reload(); }; return; }
-    var evs = await noet.query([{ kinds: [31111], authors: [PK], limit: 50 }, { kinds: [0], authors: [PK], limit: 1 }, { kinds: [5], authors: [PK], limit: 200 }, { kinds: [8001, 8002], '#p': [PK], limit: 500 }]);
+    var evs = await noet.query([{ kinds: [31111], authors: [PK], limit: 50 }, { kinds: [0], authors: [PK], limit: 1 }, { kinds: [5], authors: [PK], limit: 200 }, { kinds: [8001, 8002], '#p': [PK], limit: 500 }, { kinds: [31002], authors: [PK], limit: 300 }]);
     var del = {}; evs.filter(function (e) { return e.kind === 5; }).forEach(function (e) { (e.tags || []).forEach(function (t) { if (t[0] === 'e') del[t[1]] = 1; }); });
     var live = evs.filter(function (e) { return e.kind === 31111 && /\.(me|nt)$/i.test(tagv(e, 'd')) && !isTest(tagv(e, 'd')) && !del[e.id]; });
     var bestBy = {}; live.forEach(function (c) { var n = tagv(c, 'd'); if (!bestBy[n] || c.created_at < bestBy[n].created_at) bestBy[n] = c; });
     DOMAINS = Object.keys(bestBy).map(function (n) { return bestBy[n]; }).sort(function (a, b) { return a.created_at - b.created_at; });
+    // поддомены = мои страницы (31002) с >2 метками под моими доменами
+    var myNames = DOMAINS.map(function (c) { return tagv(c, 'd'); }), subBest = {};
+    evs.filter(function (e) { return e.kind === 31002 && !del[e.id]; }).forEach(function (e) { var d = tagv(e, 'd'); if (!d || d.split('.').length <= 2 || myNames.indexOf(baseOfName(d)) < 0) return; if (subBest[d] && subBest[d]._ts > e.created_at) return; var c = {}; try { c = JSON.parse(e.content); } catch (x) {} subBest[d] = { name: d, html: c.html || '', id: e.id, _ts: e.created_at }; });
+    SUBS = Object.keys(subBest).map(function (d) { return subBest[d]; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
     var p0 = evs.find(function (e) { return e.kind === 0; }); try { PROFILE = p0 ? JSON.parse(p0.content) : {}; } catch (e) { PROFILE = {}; }
     LANG = PROFILE.lang === 'en' ? 'en' : 'ru'; document.documentElement.lang = LANG;
     var vlast = {}; evs.filter(function (e) { return e.kind === 8001 || e.kind === 8002; }).forEach(function (v) { if (!vlast[v.pubkey] || v.created_at >= vlast[v.pubkey].created_at) vlast[v.pubkey] = v; });
@@ -125,6 +133,10 @@
         '<div class="reg"><input id="reg" placeholder="' + esc(T('regPh')) + '" ' + (canReg ? '' : 'disabled') + '><button class="pri" id="regbtn" ' + (canReg ? '' : 'disabled') + '>' + esc(T('register')) + '</button></div>' +
         (canReg ? '' : '<div class="msg mut" style="margin-top:.5rem">' + esc(T('noCapacity')) + '</div>') + '<div class="msg" id="regmsg" style="margin-top:.4rem"></div></div>' +
 
+      (DOMAINS.length ? '<div class="card"><h3>' + esc(T('subdomains')) + '</h3><p class="mut" style="margin:.2rem 0 .7rem;font-size:.88rem">' + esc(T('subHint')) + '</p>' +
+        SUBS.map(function (s) { return '<div class="dom"><span class="nm">' + esc(s.name) + '</span><span class="acts"><button data-subopen="' + esc(s.name) + '">' + esc(T('open')) + '</button><button data-subedit="' + esc(s.name) + '">' + esc(T('edit')) + '</button><button class="rel" data-subrel="' + esc(s.id) + '">' + esc(T('release')) + '</button></span></div>'; }).join('') +
+        '<div class="reg"><input id="sublabel" placeholder="' + esc(T('subPh')) + '" style="max-width:9rem"><span style="align-self:center;color:var(--mut)">.</span><select id="subbase">' + DOMAINS.map(function (c) { var n = tagv(c, 'd'); return '<option>' + esc(n) + '</option>'; }).join('') + '</select><button class="pri" id="subbtn">' + esc(T('create')) + '</button></div><div class="msg" id="submsg" style="margin-top:.4rem"></div></div>' : '') +
+
       (NAME ? '<div class="card"><h3 style="margin:0 0 .4rem">' + esc(T('yourPage')) + '</h3><div class="row" style="margin-top:.2rem"><a class="pageurl" href="http://' + esc(NAME) + '/" target="_blank">' + esc(NAME) + '</a><span class="sp"></span><button class="pri" id="edit">' + esc(T('edit')) + '</button></div></div>' : '') +
 
       '<div class="card"><h3>' + esc(T('settings')) + '</h3><p class="mut" style="margin:.2rem 0 .8rem">' + esc(T('keyInfo')) + '</p>' +
@@ -144,9 +156,24 @@
     document.querySelectorAll('[data-open]').forEach(function (b) { b.onclick = function () { noet.go('http://' + b.dataset.open + '/'); }; });
     document.querySelectorAll('[data-mkp]').forEach(function (b) { b.onclick = function () { setPrimary(b.dataset.mkp); }; });
     document.querySelectorAll('[data-rel]').forEach(function (b) { b.onclick = function () { releaseDomain(b.dataset.rel, b.dataset.rn); }; });
-    var ed = $('#edit'); if (ed) ed.onclick = function () { EDNAME = NAME; openEditor(); };
+    var ed = $('#edit'); if (ed) ed.onclick = function () { editName(NAME, PAGE && PAGE.html); };
+    var sb = $('#subbtn'); if (sb) sb.onclick = function () { createSub($('#subbase').value, $('#sublabel').value, $('#submsg')); };
+    var sl = $('#sublabel'); if (sl) sl.addEventListener('keydown', function (e) { if (e.key === 'Enter') createSub($('#subbase').value, sl.value, $('#submsg')); });
+    document.querySelectorAll('[data-subopen]').forEach(function (b) { b.onclick = function () { noet.go('http://' + b.dataset.subopen + '/'); }; });
+    document.querySelectorAll('[data-subedit]').forEach(function (b) { b.onclick = function () { var s = SUBS.find(function (x) { return x.name === b.dataset.subedit; }); editName(b.dataset.subedit, s && s.html); }; });
+    document.querySelectorAll('[data-subrel]').forEach(function (b) { b.onclick = function () { releaseSub(b.dataset.subrel); }; });
     $('#lru').onclick = function () { setLang('ru'); }; $('#len').onclick = function () { setLang('en'); };
   }
+  // поддомен бесплатен под твоим доменом: просто публикуем страницу 31002 на dev.base (заявка не нужна)
+  async function createSub(base, label, m) {
+    var lab = (label || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); if (!lab || !base) { m.className = 'msg err'; m.textContent = T('enterName'); return; }
+    var name = lab + '.' + base;
+    if (SUBS.some(function (s) { return s.name === name; })) { m.className = 'msg err'; m.textContent = T('subExists'); return; }
+    m.className = 'msg'; m.textContent = T('registering');
+    try { await noet.publish({ kind: 31002, tags: [['d', name]], content: JSON.stringify({ html: pageFromText(lab, T('myPageBody')), title: lab, mode: 'html' }) }); await load(); }
+    catch (e) { m.className = 'msg err'; m.textContent = T('failed'); }
+  }
+  async function releaseSub(id) { try { await noet.publish({ kind: 5, tags: [['e', id]] }); await load(); } catch (e) {} }
 
   async function publishProfile(extra) { var p = Object.assign({}, PROFILE, extra || {}); await noet.publish({ kind: 0, tags: [], content: JSON.stringify(p) }); PROFILE = p; }
   function saveProfile() { var m = $('#pmsg'); m.className = 'msg'; m.textContent = T('saving');
@@ -188,7 +215,7 @@
     try { await noet.publish({ kind: 5, tags: [['e', id]] }); if (PROFILE.primary === name) { try { await publishProfile({ primary: '' }); } catch (e) {} } await load(); } catch (e) {}
   }
 
-  function openEditor() { mode = 'text'; edTitle = ''; edBody = ''; edHtml = ''; if (PAGE && PAGE.html) { mode = 'html'; edHtml = PAGE.html; } editor(); }
+  function editName(name, html) { EDNAME = name; edTitle = ''; edBody = ''; edHtml = ''; mode = 'text'; if (html) { mode = 'html'; edHtml = html; } editor(); }
   function editor() {
     var isHtml = mode === 'html';
     $('#app').innerHTML = '<div class="row" style="margin:0 0 1rem"><button class="gho" id="back">' + esc(T('back')) + '</button><span class="mut">' + esc(EDNAME) + '</span><span class="sp"></span><div class="seg"><button id="mt" class="' + (isHtml ? '' : 'on') + '">' + esc(T('mText')) + '</button><button id="mh" class="' + (isHtml ? 'on' : '') + '">' + esc(T('mHtml')) + '</button></div><button class="pri" id="pub">' + esc(T('publish')) + '</button></div>' +

@@ -14,6 +14,8 @@ function parseTarget(raw) {
   try { const u = new URL(raw); return { host: u.hostname.toLowerCase(), path: u.pathname + u.search, full: raw }; }
   catch { return { host: '', path: '/', full: raw }; }
 }
+// базовое имя = последние две метки. dev.nyx.me / api.dev.nyx.me → nyx.me (его владелец владеет поддеревом)
+function baseOf(h) { const p = String(h).split('.'); return p.length <= 2 ? h : p.slice(-2).join('.'); }
 
 async function loadConfig() {
   try {
@@ -193,7 +195,11 @@ const hasD = (ev, name) => (ev.tags || []).some((t) => t[0] === 'd' && t[1] === 
 // БЫСТРЫЙ бессерверный резолв: ОДИН запрос за заявкой (31111) И страницей (31002), с
 // РАННИМ выходом — отвечаем, как только пришла заявка+страница (≈ от самого быстрого
 // реле, <1с), не дожидаясь EOSE от всех. Один претендент → он владелец; коллизия → OTS.
+// Резолв host. Владелец берётся из заявки на БАЗОВОЕ имя (base): кто владеет nyx.me, тот
+// владеет и dev.nyx.me. Страница — 31002 точного host, подписанная этим владельцем.
+// Для базового имени base === host, поведение прежнее.
 function resolveServerless(host) {
+  const base = baseOf(host);
   return new Promise((resolve) => {
     let socks; try { socks = RELAYS.map((u) => new WebSocket(u)); } catch { return resolve(null); }
     const claims = [], pages = []; let done = false, closed = 0, soon = null;
@@ -202,16 +208,16 @@ function resolveServerless(host) {
       if (done) return; done = true; clearTimeout(cap); clearTimeout(soon); try { socks.forEach((w) => w.close()); } catch {}
       if (!claims.length) return resolve(null);
       claims.sort((a, b) => a.created_at - b.created_at);
-      const owner = claims[0].pubkey;   // ранняя заявка = владелец (коллизии редки)
+      const owner = claims[0].pubkey;   // ранняя заявка на базу = владелец поддерева
       const mine = pages.filter((p) => p.pubkey === owner).sort((a, b) => b.created_at - a.created_at);
       let rec = null; if (mine[0]) { try { const d = JSON.parse(mine[0].content); rec = { html: d.html || null, cid: d.cid || null }; } catch {} }
       resolve({ owner, rec });
     }
     socks.forEach((ws) => {
-      ws.onopen = () => { try { ws.send(JSON.stringify(['REQ', 'q', { kinds: [31111], '#d': [host], limit: 20 }, { kinds: [31002], '#d': [host], limit: 20 }])); } catch {} };
+      ws.onopen = () => { try { ws.send(JSON.stringify(['REQ', 'q', { kinds: [31111], '#d': [base], limit: 20 }, { kinds: [31002], '#d': [host], limit: 20 }])); } catch {} };
       ws.onmessage = (m) => {
         try { const a = JSON.parse(m.data);
-          if (a[0] === 'EVENT') { const ev = a[2]; if (ev.kind === 31111 && hasD(ev, host)) claims.push(ev); else if (ev.kind === 31002 && hasD(ev, host)) pages.push(ev);
+          if (a[0] === 'EVENT') { const ev = a[2]; if (ev.kind === 31111 && hasD(ev, base)) claims.push(ev); else if (ev.kind === 31002 && hasD(ev, host)) pages.push(ev);
             if (claims.length && pages.length && !soon) soon = setTimeout(finish, 400);   // есть оба → добираем 400мс и отвечаем
           } else if (a[0] === 'EOSE') { ws.close(); if (++closed >= socks.length) finish(); }
         } catch {}
