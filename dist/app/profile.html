@@ -117,7 +117,7 @@
         '<label>О себе</label><textarea id="p_about" placeholder="пара слов">' + esc(PROFILE.about || '') + '</textarea>' +
         '<div class="row"><button class="gho" id="psave">Сохранить профиль</button><span class="msg" id="pmsg" style="margin:0"></span></div></div>' +
       (NAME ? '<div class="card"><label style="margin-top:0">Твоя страница</label><div class="row" style="margin-top:.2rem"><a class="pageurl" href="http://' + esc(NAME) + '/" target="_blank">' + esc(NAME) + '</a><span class="sp"></span><button class="pri" id="edit">Редактировать</button></div></div>'
-        : '<div class="card"><label style="margin-top:0">Займи имя</label><div class="name-row"><input id="claim" placeholder="имя"><span class="suf">.me</span></div><div class="row"><button class="pri" id="doclaim">Занять и создать страницу</button><span class="msg" id="cmsg" style="margin:0"></span></div></div>') +
+        : '<div class="card"><label style="margin-top:0">Придумай тег</label><input id="claim" placeholder="например, alex"><div class="row"><button class="pri" id="doclaim">Занять и создать страницу</button><span class="msg" id="cmsg" style="margin:0"></span></div></div>') +
       '<div class="card"><h3>Настройки</h3><p class="mut" style="margin:.2rem 0">Ключ, бэкап и импорт — нажми иконку noet в браузере. Ключ это твоя личность, он живёт в расширении.</p><p class="mut" style="margin:.2rem 0">Язык: Русский <span style="opacity:.6">(English скоро)</span></p></div>';
 
     wireProfile();
