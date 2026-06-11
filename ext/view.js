@@ -47,6 +47,30 @@ function setName(host) {
 }
 function showMsg(html) { $('#msg').style.display = 'flex'; $('#msg').innerHTML = html; }
 
+// ---- верхняя полоса: навигация + личность + сворачивание (одна на все страницы) ----
+function esch(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function genAv(pk, nm) { let h = 0; const seed = pk || nm || '?'; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0; const hue = h % 360, ch = (nm || '').trim() ? nm.trim()[0].toUpperCase() : ''; return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esch(ch) + "</text></svg>"); }
+function setupBar(host) {
+  $('#brand').onclick = () => { location.href = 'http://noet.nt/'; };
+  document.querySelectorAll('#nav a').forEach((a) => { if (a.dataset.h === host) a.classList.add('on'); a.onclick = (e) => { e.preventDefault(); location.href = 'http://' + a.dataset.h + '/'; }; });
+  $('#chip').onclick = () => { location.href = 'http://id.nt/'; };
+  $('#collapse').onclick = () => { $('#bar').classList.add('hide'); $('#reopen').style.display = 'flex'; };
+  $('#reopen').onclick = () => { $('#bar').classList.remove('hide'); $('#reopen').style.display = 'none'; };
+  renderChip();
+}
+async function renderChip() {
+  try {
+    const pk = await getPub();
+    const evs = await relayQuery([{ kinds: [0], authors: [pk], limit: 1 }, { kinds: [31111], authors: [pk], limit: 20 }]);
+    let prof = {}; const p0 = evs.find((e) => e.kind === 0); try { prof = p0 ? JSON.parse(p0.content) : {}; } catch {}
+    const claims = evs.filter((e) => e.kind === 31111 && /\.(me|nt)$/i.test(((e.tags.find((t) => t[0] === 'd') || [])[1]) || '')).sort((a, b) => b.created_at - a.created_at);
+    const name = claims[0] ? (claims[0].tags.find((t) => t[0] === 'd') || [])[1] : '';
+    const dn = prof.name || name.replace(/\.(me|nt)$/i, '') || 'я';
+    const av = prof.picture && /^(https?:|data:)/i.test(prof.picture) ? prof.picture : genAv(pk, dn);
+    const chip = $('#chip'); chip.innerHTML = '<img src="' + esch(av) + '"><span class="nm">' + esch(dn) + '</span>'; chip.style.display = 'inline-flex';
+  } catch { /* нет ключа — без чипа */ }
+}
+
 // ---- мост window.noet / window.nostr для контента в sandbox-рендере ----
 // Публичные шлюзы либо не выполняют JS (dweb.link), либо не находят наш контент
 // (w3s.link, IPNI). Поэтому забираем БАЙТЫ страницы со шлюза (он их отдаёт) и рисуем
@@ -194,6 +218,7 @@ async function main() {
   const { host, path } = parseTarget(originalUrl());
 
   if (!host) { showMsg('<h2>noet</h2><div>Не разобрал адрес.</div>'); return; }
+  setupBar(host);   // навигация и личность живут в верхней полосе, общей для всех страниц
 
   // Служебные страницы (дом/профиль/люди/лента/разработчикам) тянутся СНАРУЖИ (с Pages)
   // и рисуются в sandbox с мостом window.noet/nostr. Расширение заморожено: правки UI
