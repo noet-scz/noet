@@ -39,6 +39,12 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]); }); };
   var tagv = function (ev, k) { var t = (ev.tags || []).find(function (x) { return x[0] === k; }); return t ? t[1] : ''; };
   var TOPIC = 'noet', IMG_RE = /\.(png|jpe?g|gif|webp|avif|svg)(\?[^\s]*)?$/i;
+  var LANG = 'ru';
+  var DICT = {
+    ru: { today: 'сегодня', yesterday: 'вчера', empty: 'Пока пусто. Будь первым.', replyTo: 'в ответ @', reply: '↩ ответить', del: 'удалить', needId: 'Создай личность в расширении noet, чтобы писать.', replyingTo: 'в ответ', composePh: 'написать в ленту…', send: 'Отправить', needExt: 'Открой через расширение noet.' },
+    en: { today: 'today', yesterday: 'yesterday', empty: 'Empty. Be the first.', replyTo: 'replying to @', reply: '↩ reply', del: 'delete', needId: 'Create an identity in the noet extension to post.', replyingTo: 'replying to', composePh: 'write to the feed…', send: 'Send', needExt: 'Open via the noet extension.' }
+  };
+  var T = function (k) { return (DICT[LANG] || DICT.ru)[k] || DICT.ru[k] || k; };
   document.querySelectorAll('[data-go]').forEach(function (a) { a.onclick = function () { noet.go('http://' + a.dataset.go + '/'); }; });
 
   var MYPK = null, replyTo = null;
@@ -68,22 +74,22 @@
   var two = function (n) { return String(n).padStart(2, '0'); };
   var fmtTime = function (ts) { var d = new Date(ts * 1000); return two(d.getHours()) + ':' + two(d.getMinutes()); };
   function dayLabel(ts) { var d = new Date(ts * 1000), n = new Date(), same = function (a, b) { return a.toDateString() === b.toDateString(); }, y = new Date(n); y.setDate(n.getDate() - 1);
-    if (same(d, n)) return 'сегодня'; if (same(d, y)) return 'вчера'; return d.toLocaleDateString('ru', { day: 'numeric', month: 'long' }); }
+    if (same(d, n)) return T('today'); if (same(d, y)) return T('yesterday'); return d.toLocaleDateString(LANG, { day: 'numeric', month: 'long' }); }
 
   function render() {
     var log = $('#log');
     var list = [...events.values()].filter(function (e) { return !deleted.has(e.id); }).sort(function (a, b) { return a.created_at - b.created_at; }).slice(-400);
-    if (!list.length) { log.innerHTML = '<div class="mut" style="text-align:center;padding:2rem">Пока пусто. Будь первым.</div>'; return; }
+    if (!list.length) { log.innerHTML = '<div class="mut" style="text-align:center;padding:2rem">' + esc(T('empty')) + '</div>'; return; }
     var nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 140;
     var html = '', lastDay = null;
     for (var i = 0; i < list.length; i++) { var ev = list[i];
       var dk = dayLabel(ev.created_at); if (dk !== lastDay) { html += '<div class=day>' + esc(dk) + '</div>'; lastDay = dk; }
       var mine = MYPK && MYPK === ev.pubkey;
       var replyE = (ev.tags || []).find(function (tg) { return tg[0] === 'e' && (tg[3] === 'reply' || tg[3] === 'root' || !tg[3]); });
-      var ref = ''; if (replyE) { var par = events.get(replyE[1]); var who = par ? nameOf(par.pubkey) : '…'; ref = '<div class=refto data-to="' + esc(replyE[1]) + '">↳ в ответ @' + esc(who) + '</div>'; }
+      var ref = ''; if (replyE) { var par = events.get(replyE[1]); var who = par ? nameOf(par.pubkey) : '…'; ref = '<div class=refto data-to="' + esc(replyE[1]) + '">↳ ' + esc(T('replyTo')) + esc(who) + '</div>'; }
       html += '<div class="m' + (mine ? ' me' : '') + '" data-id="' + esc(ev.id) + '"><img class=av src="' + avatar(ev.pubkey) + '">' +
         '<div class=b><div class=h><span class=nm>' + esc(nameOf(ev.pubkey)) + '</span><span class=tm>' + fmtTime(ev.created_at) + '</span>' +
-        '<span class=act>' + (MYPK ? '<button class=rep data-id="' + esc(ev.id) + '">↩ ответить</button>' : '') + (mine ? '<button class=del data-del="' + esc(ev.id) + '">удалить</button>' : '') + '</span></div>' +
+        '<span class=act>' + (MYPK ? '<button class=rep data-id="' + esc(ev.id) + '">' + esc(T('reply')) + '</button>' : '') + (mine ? '<button class=del data-del="' + esc(ev.id) + '">' + esc(T('del')) + '</button>' : '') + '</span></div>' +
         ref + '<div class=tx>' + renderContent(ev.content) + '</div></div></div>';
     }
     log.innerHTML = html;
@@ -123,9 +129,9 @@
 
   function renderFoot() {
     var f = $('#foot');
-    if (!MYPK) { f.innerHTML = '<span class="mut">Создай личность в расширении noet, чтобы писать.</span>'; return; }
-    var rb = replyTo ? '<div class=replybar>в ответ <b>@' + esc(nameOf(replyTo.pubkey)) + '</b><button id=rcancel>✕</button></div>' : '';
-    f.innerHTML = rb + '<form class=composer id=cf><input id=ci placeholder="написать в ленту…" maxlength=2000 autocomplete=off><div class=ac id=ac style="display:none"></div><button id=cb type=submit>Отправить</button></form>';
+    if (!MYPK) { f.innerHTML = '<span class="mut">' + esc(T('needId')) + '</span>'; return; }
+    var rb = replyTo ? '<div class=replybar>' + esc(T('replyingTo')) + ' <b>@' + esc(nameOf(replyTo.pubkey)) + '</b><button id=rcancel>✕</button></div>' : '';
+    f.innerHTML = rb + '<form class=composer id=cf><input id=ci placeholder="' + esc(T('composePh')) + '" maxlength=2000 autocomplete=off><div class=ac id=ac style="display:none"></div><button id=cb type=submit>' + esc(T('send')) + '</button></form>';
     var rc = $('#rcancel'); if (rc) rc.onclick = function () { replyTo = null; renderFoot(); };
     $('#cf').addEventListener('submit', async function (e) { e.preventDefault(); var v = $('#ci').value; $('#ci').value = ''; hideAc(); $('#cb').disabled = true; try { await send(v); } catch (err) { $('#ci').value = v; } $('#cb').disabled = false; $('#ci').focus(); });
     $('#ci').addEventListener('input', onCompose); $('#ci').addEventListener('keydown', acKeydown);
@@ -145,8 +151,9 @@
   function pickAc(i) { var inp = $('#ci'), h = acItems[i]; if (!h) return; var pos = inp.selectionStart, before = inp.value.slice(0, pos), after = inp.value.slice(pos), nb = before.replace(/@([a-z0-9_]*)$/i, '@' + h + ' '); inp.value = nb + after; inp.selectionStart = inp.selectionEnd = nb.length; hideAc(); inp.focus(); }
 
   async function init() {
-    if (!window.noet) { $('#log').innerHTML = '<div class="mut" style="text-align:center;padding:2rem">Открой через расширение noet.</div>'; return; }
+    if (!window.noet) { $('#log').innerHTML = '<div class="mut" style="text-align:center;padding:2rem">' + esc(T('needExt')) + '</div>'; return; }
     try { MYPK = (await noet.me()).pubkey; } catch (e) { MYPK = null; }
+    try { var lp = await noet.query({ kinds: [0], authors: [MYPK], limit: 1 }); var lpf = lp[0] ? JSON.parse(lp[0].content) : {}; if (lpf.lang === 'en') { LANG = 'en'; document.documentElement.lang = 'en'; } } catch (e) {}
     renderFoot();
     await refresh();
     setInterval(refresh, 6000);   // живое обновление (опрос реле)

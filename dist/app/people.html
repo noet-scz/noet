@@ -23,10 +23,10 @@
   h2{font-size:1.1rem;margin:2rem 0 .6rem;border-left:3px solid var(--acc);padding-left:.6rem}.rules p{margin:.35rem 0;color:#c3c3cd;font-size:.92rem}.rules b{color:var(--fg)}
 </style></head>
 <body><div class="wrap">
-  <h1>Люди</h1><p class="lead">Участники сети и их репутация. Считается из подписанных событий, без сервера.</p>
-  <div id="me"></div><div id="list"><div class="mut">загружаю…</div></div>
-  <h2>Как растёт репутация</h2>
-  <div class="card rules"><p><b>Даётся за:</b> стаж в сети и поручительства других.</p><p><b>Это ёмкость, а не власть.</b> Считается у тебя в браузере, одинаково у всех.</p></div>
+  <h1 id="t_h1">Люди</h1><p class="lead" id="t_lead">Участники сети и их репутация. Считается из подписанных событий, без сервера.</p>
+  <div id="me"></div><div id="list"><div class="mut">…</div></div>
+  <h2 id="t_h2">Как растёт репутация</h2>
+  <div class="card rules" id="t_rules"></div>
 </div>
 <script>
 (function () {
@@ -35,7 +35,13 @@
   var tagv = function (ev, k) { var t = (ev.tags || []).find(function (x) { return x[0] === k; }); return t ? t[1] : ''; };
   var handleFromName = function (n) { return String(n).replace(/\.(me|nt)$/i, ''); };
   var isTest = function (n) { return /^p\d+-[0-9a-f]{5,}\.(me|nt)$/i.test(n); };
-  document.querySelectorAll('[data-go]').forEach(function (a) { a.onclick = function () { noet.go('http://' + a.dataset.go + '/'); }; });
+  var LANG = 'ru';
+  var DICT = {
+    ru: { h1: 'Люди', lead: 'Участники сети и их репутация. Считается из подписанных событий, без сервера.', h2: 'Как растёт репутация', rules: '<p><b>Даётся за:</b> стаж в сети и поручительства других.</p><p><b>Это ёмкость, а не власть.</b> Считается у тебя в браузере, одинаково у всех.</p>', you: 'ты', rep: 'репутация', needId: 'Создай личность в расширении, чтобы ручаться за людей.', since: 'в noet с', vouchedBy: 'ручались', vouch: 'Поручиться', unvouch: 'Отозвать поручительство', repLbl: 'репутация', nobody: 'Пока никого.', failed: 'не вышло', loadFail: 'не загрузилось, обнови' },
+    en: { h1: 'People', lead: 'Members of the network and their reputation. Computed from signed events, no server.', h2: 'How reputation grows', rules: '<p><b>Given for:</b> tenure in the network and vouches from others.</p><p><b>It is capacity, not power.</b> Computed in your browser, the same for everyone.</p>', you: 'you', rep: 'reputation', needId: 'Create an identity in the extension to vouch for people.', since: 'on noet since', vouchedBy: 'vouched by', vouch: 'Vouch', unvouch: 'Revoke vouch', repLbl: 'reputation', nobody: 'Nobody yet.', failed: 'failed', loadFail: 'failed to load, refresh' }
+  };
+  var T = function (k) { return (DICT[LANG] || DICT.ru)[k] || DICT.ru[k] || k; };
+  function applyStatic() { document.documentElement.lang = LANG; $('#t_h1').textContent = T('h1'); $('#t_lead').textContent = T('lead'); $('#t_h2').textContent = T('h2'); $('#t_rules').innerHTML = T('rules'); }
   function avatar(pk, name, pic) { if (pic && /^(https?:|data:)/i.test(pic)) return pic; var h = 0, seed = pk || name; for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0; var hue = h % 360, ch = (name || '').trim() ? name.trim()[0].toUpperCase() : '';
     return 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='32' fill='hsl(" + hue + " 60% 50%)'/><text x='32' y='43' font-family='system-ui' font-size='30' font-weight='600' fill='white' text-anchor='middle'>" + esc(ch) + "</text></svg>"); }
 
@@ -55,25 +61,27 @@
     vouches.forEach(function (v) { var to = tagv(v, 'p'); recv[to] = (recv[to] || []).concat((profs[v.pubkey] && profs[v.pubkey].name) || handleFromName(members[v.pubkey].name)); rep[to] = (rep[to] || 1) + 1; });
     PEOPLE = Object.keys(members).map(function (pk) { return { pk: pk, name: members[pk].name, since: members[pk].since, prof: profs[pk] || null, rep: Math.round((rep[pk] || 1) * 10) / 10, vouchers: recv[pk] || [] }; }).sort(function (a, b) { return b.rep - a.rep; });
     MYV = new Set(vouches.filter(function (v) { return v.pubkey === MYPK; }).map(function (v) { return tagv(v, 'p'); }));
+    LANG = (MYPK && profs[MYPK] && profs[MYPK].lang === 'en') ? 'en' : 'ru'; applyStatic();
     render();
   }
   function render() {
     var mine = PEOPLE.find(function (p) { return p.pk === MYPK; });
-    $('#me').innerHTML = MYPK ? '<div class="card"><div class="psub">ты: @' + esc(handleFromName((mine || {}).name || MYPK.slice(0, 10))) + ' · репутация <b style="color:var(--acc2)">' + esc((mine || {}).rep != null ? mine.rep : '—') + '</b></div></div>'
-      : '<div class="card"><span class="mut">Создай личность в расширении, чтобы ручаться за людей.</span></div>';
+    $('#me').innerHTML = MYPK ? '<div class="card"><div class="psub">' + esc(T('you')) + ': @' + esc(handleFromName((mine || {}).name || MYPK.slice(0, 10))) + ' · ' + esc(T('rep')) + ' <b style="color:var(--acc2)">' + esc((mine || {}).rep != null ? mine.rep : '—') + '</b></div></div>'
+      : '<div class="card"><span class="mut">' + esc(T('needId')) + '</span></div>';
     $('#list').innerHTML = PEOPLE.map(function (m) {
       var handle = handleFromName(m.name), dn = (m.prof && m.prof.name) || handle, isMine = MYPK === m.pk, vouched = MYV.has(m.pk);
       return '<div class="card"><div class="prow"><img class="pav" src="' + avatar(m.pk, dn, m.prof && m.prof.picture) + '">' +
         '<div style="min-width:0"><div class="pname"><a data-go-me="' + esc(m.name) + '">' + esc(dn) + '</a> <span class="me">@' + esc(handle) + '</span></div>' +
-        '<div class="psub">в noet с ' + new Date(m.since * 1000).toLocaleDateString('ru') + (m.vouchers.length ? ' · ручались: ' + m.vouchers.map(esc).join(', ') : '') + '</div>' +
-        (MYPK && !isMine ? '<div class="acts">' + (vouched ? '<button class="g" data-un="' + esc(m.pk) + '">Отозвать поручительство</button>' : '<button class="b" data-v="' + esc(m.pk) + '">Поручиться</button>') + '<span class="msg" data-m="' + esc(m.pk) + '"></span></div>' : '') +
-        '</div><div class="rep"><b>' + esc(m.rep) + '</b><span class="lbl">репутация</span></div></div></div>';
-    }).join('') || '<div class="mut">Пока никого.</div>';
+        '<div class="psub">' + esc(T('since')) + ' ' + new Date(m.since * 1000).toLocaleDateString(LANG) + (m.vouchers.length ? ' · ' + esc(T('vouchedBy')) + ': ' + m.vouchers.map(esc).join(', ') : '') + '</div>' +
+        (MYPK && !isMine ? '<div class="acts">' + (vouched ? '<button class="g" data-un="' + esc(m.pk) + '">' + esc(T('unvouch')) + '</button>' : '<button class="b" data-v="' + esc(m.pk) + '">' + esc(T('vouch')) + '</button>') + '<span class="msg" data-m="' + esc(m.pk) + '"></span></div>' : '') +
+        '</div><div class="rep"><b>' + esc(m.rep) + '</b><span class="lbl">' + esc(T('repLbl')) + '</span></div></div></div>';
+    }).join('') || '<div class="mut">' + esc(T('nobody')) + '</div>';
     document.querySelectorAll('[data-go-me]').forEach(function (a) { a.onclick = function () { noet.go('http://' + a.dataset.goMe + '/'); }; });
     document.querySelectorAll('[data-v],[data-un]').forEach(function (b) { b.onclick = async function () { var pk = b.dataset.v || b.dataset.un, m = document.querySelector('[data-m="' + pk + '"]'); if (m) { m.textContent = '…'; m.className = 'msg'; }
-      try { await noet.publish({ kind: b.dataset.v ? 8001 : 8002, tags: [['p', pk]] }); await load(); } catch (e) { if (m) { m.textContent = 'не вышло'; m.className = 'msg err'; } } }; });
+      try { await noet.publish({ kind: b.dataset.v ? 8001 : 8002, tags: [['p', pk]] }); await load(); } catch (e) { if (m) { m.textContent = T('failed'); m.className = 'msg err'; } } }; });
   }
+  applyStatic();
   if (!window.noet) { $('#list').innerHTML = '<div class="mut">Открой через расширение noet.</div>'; return; }
-  load().catch(function () { $('#list').innerHTML = '<div class="mut">не загрузилось, обнови</div>'; });
+  load().catch(function () { $('#list').innerHTML = '<div class="mut">' + esc(T('loadFail')) + '</div>'; });
 })();
 </script></body></html>
